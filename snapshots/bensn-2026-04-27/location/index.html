@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Location · bensn.me</title>
+<meta name="description" content="Persönlicher Standortverlauf.">
+<link rel="manifest" href="/manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Location">
+<meta name="theme-color" content="#0a0a0b">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">    
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/shared/bensn.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+
+body { overscroll-behavior: none; }
+.app-wrap {
+  position: relative;
+  z-index: 1;
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 0 1.25rem 3rem;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Stats bar ── */
+.loc-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 1rem;
+}
+
+/* ── Tabs ── */
+.tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 1rem; }
+.tab {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  padding: 9px 14px;
+  cursor: pointer;
+  color: var(--muted);
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  background: none;
+  transition: color .15s, border-color .15s;
+}
+.tab.active { color: var(--text); border-bottom-color: var(--text); }
+.tab:hover:not(.active) { color: var(--text); }
+.tab-section { display: none; }
+.tab-section.visible { display: block; }
+
+/* Raw toggle */
+.raw-toggle {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  padding: 9px 14px;
+  cursor: pointer;
+  color: var(--muted);
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  background: none;
+  transition: color .15s, border-color .15s;
+  margin-left: auto;
+}
+.raw-toggle:hover { color: var(--orange); }
+.raw-toggle.active { color: var(--orange); border-bottom-color: var(--orange); }
+
+/* ── Map ── */
+.map-wrap {
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  margin-bottom: 1rem;
+}
+#map {
+  height: 420px;
+  background: var(--surface);
+}
+.leaflet-tile { filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.9); }
+.leaflet-container { background: #0a0a0b; }
+.leaflet-control-attribution {
+  font-family: 'DM Mono', monospace !important;
+  font-size: 9px !important;
+  background: rgba(10,10,11,0.8) !important;
+  color: var(--muted) !important;
+}
+.leaflet-control-attribution a { color: var(--muted) !important; }
+
+/* Day selector */
+.day-selector {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+.day-btn {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  background: none;
+  cursor: pointer;
+  transition: all .15s;
+}
+.day-btn.active { border-color: var(--accent-blue); color: var(--accent-blue); background: rgba(0,166,251,0.08); }
+.day-btn:hover:not(.active) { border-color: var(--border-hover); color: var(--text); }
+
+/* ── Timeline ── */
+.day-group { margin-bottom: 1.5rem; }
+.day-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  padding: 0 2px;
+}
+.day-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.day-count { font-family: 'DM Mono', monospace; font-size: 9px; color: rgba(255,255,255,0.2); }
+.day-line { flex: 1; height: 1px; background: var(--border); }
+
+.timeline { display: flex; flex-direction: column; gap: 2px; }
+
+.loc-row {
+  display: grid;
+  grid-template-columns: 32px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  transition: border-color 0.15s;
+  opacity: 0;
+  transform: translateY(6px);
+  animation: fadeUp 0.4s ease forwards;
+}
+.loc-row:hover { border-color: var(--border-hover); }
+
+.loc-time-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+.loc-dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(0,166,251,0.5); flex-shrink: 0; }
+.loc-dot.recent { background: var(--accent-blue); box-shadow: 0 0 6px rgba(0,166,251,0.4); }
+.loc-time { font-family: 'DM Mono', monospace; font-size: 9px; color: var(--muted); letter-spacing: 0.04em; white-space: nowrap; }
+
+.loc-main { min-width: 0; }
+.loc-place {
+  font-family: 'Syne', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.01em;
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.loc-coords { font-family: 'DM Mono', monospace; font-size: 9.5px; color: var(--muted); letter-spacing: 0.02em; }
+
+.loc-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; flex-shrink: 0; }
+.loc-acc { font-family: 'DM Mono', monospace; font-size: 9px; color: rgba(255,255,255,0.2); }
+.loc-acc.good { color: rgba(74,222,128,0.5); }
+.loc-acc.ok   { color: rgba(250,204,21,0.4); }
+.loc-acc.bad  { color: rgba(255,0,81,0.4); }
+
+.loc-weather {
+  font-family: 'DM Mono', monospace;
+  font-size: 9.5px;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 3px;
+}
+.loc-weather svg { opacity: 0.6; flex-shrink: 0; }
+
+.load-more-btn {
+  width: 100%;
+  margin-top: 1rem;
+  padding: 10px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--muted);
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.load-more-btn:hover { border-color: var(--border-hover); color: var(--text); }
+.load-more-btn:disabled { opacity: 0.3; cursor: default; }
+
+.state-msg {
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+  padding: 3rem 1rem;
+  border: 1px dashed var(--border);
+  border-radius: 16px;
+  line-height: 1.8;
+}
+
+@keyframes fadeUp { to { opacity: 1; transform: none; } }
+
+/* ── Stay Cards ── */
+.stay-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 6px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: start;
+  gap: 10px;
+  cursor: pointer;
+  transition: border-color .15s;
+  opacity: 0;
+  transform: translateY(6px);
+  animation: fadeUp 0.4s ease forwards;
+}
+.stay-card:hover { border-color: var(--border-hover); }
+.stay-card.named { border-color: rgba(0,166,251,0.25); }
+
+.stay-name {
+  font-family: 'Syne', sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.01em;
+  margin-bottom: 2px;
+}
+.stay-place { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); margin-bottom: 4px; }
+.stay-meta {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  color: var(--muted);
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.stay-meta span { white-space: nowrap; }
+.stay-duration {
+  font-family: 'DM Mono', monospace;
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--accent-blue);
+  text-align: right;
+  white-space: nowrap;
+}
+.stay-time { font-family: 'DM Mono', monospace; font-size: 9px; color: var(--muted); text-align: right; margin-top: 3px; }
+.stay-weather {
+  font-family: 'DM Mono', monospace;
+  font-size: 9.5px;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 3px;
+}
+
+/* Stay edit sheet */
+.stay-edit-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.7);
+  z-index: 100;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.stay-edit-sheet {
+  background: #161616;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 16px 16px 0 0;
+  padding: 1.5rem 1.25rem 2rem;
+  width: 100%;
+  max-width: 480px;
+}
+
+/* ── Date Filter ── */
+.date-filter {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  margin-bottom: 1rem;
+  scrollbar-width: none;
+}
+.date-filter::-webkit-scrollbar { display: none; }
+.date-filter-btn {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  background: none;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all .15s;
+  flex-shrink: 0;
+}
+.date-filter-btn.active { border-color: var(--accent-blue); color: var(--accent-blue); background: rgba(0,166,251,0.08); }
+.date-filter-btn:hover:not(.active) { border-color: var(--border-hover); color: var(--text); }
+
+</style>
+</head>
+<body>
+
+<div class="grid-bg"></div>
+<div class="blobs" id="blobs"></div>
+
+<div class="app-wrap">
+
+  <!-- ── Navbar ── -->
+  <nav class="app-nav intro-fade" style="animation-delay:0.05s">
+    <a href="https://bensn.me" class="nav-crumb"><span>bensn</span>.me</a>
+    <span class="nav-sep">/</span>
+    <span class="nav-current">location</span>
+    <div class="nav-right">
+      <div class="dot" id="statusDot" style="background:var(--muted);animation:none"></div>
+      <span id="statusText">laden…</span>
+    </div>
+  </nav>
+
+  <!-- ── Stats ── -->
+  <div class="loc-stats intro-fade" style="animation-delay:0.12s">
+    <span class="date-filter-btn" style="cursor:default">Gesamt: <span id="stat-total">—</span></span>
+    <span class="date-filter-btn" style="cursor:default">Heute: <span id="stat-today">—</span></span>
+    <span class="date-filter-btn" style="cursor:default">Letzter: <span id="stat-last">—</span></span>
+  </div>
+
+  <!-- ── Tabs ── -->
+  <div class="tabs intro-fade" style="animation-delay:0.18s">
+    <button class="tab active" id="tab-btn-timeline">Zeitachse</button>
+    <button class="tab" id="tab-btn-map">Karte</button>
+    <button class="raw-toggle" id="raw-toggle">Rohdaten</button>
+  </div>
+
+  <!-- Zeitachse -->
+  <div id="tab-timeline" class="tab-section visible">
+    <div class="date-filter" id="date-filter"></div>
+    <div id="timeline-container"></div>
+  </div>
+
+  <!-- Karte -->
+  <div id="tab-map" class="tab-section">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      <div class="day-selector" id="day-selector" style="flex:1;margin-bottom:0"></div>
+      <button id="map-style-btn" onclick="toggleMapStyle()"
+        style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.06em;padding:5px 10px;border-radius:6px;border:1px solid var(--border);color:var(--muted);background:none;cursor:pointer;white-space:nowrap;transition:all .15s">
+        Satellit
+      </button>
+    </div>
+    <div class="map-wrap">
+      <div id="map"></div>
+    </div>
+  </div>
+
+  <footer style="border-top:1px solid var(--border);padding:1rem 0;display:flex;justify-content:space-between;margin-top:auto">
+    <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)">location.bensn.me</span>
+    <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)" id="footer-clock"></span>
+  </footer>
+
+</div>
+
+<script src="/shared/bensn.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+/* ── PWA Service Worker ── */
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('/sw.js').catch(()=>{});
+}
+
+/* ── Clock ── */
+function pad(n){return String(n).padStart(2,'0')}
+function clockTick(){
+  const n=new Date();
+  const el=document.getElementById('footer-clock');
+  if(el) el.textContent=pad(n.getHours())+':'+pad(n.getMinutes())+':'+pad(n.getSeconds());
+}
+clockTick(); setInterval(clockTick,1000);
+
+/* ── Helpers ── */
+function fmtTime(iso){
+  if(!iso) return '—';
+  return new Date(iso).toLocaleTimeString('de-AT',{hour:'2-digit',minute:'2-digit',timeZone:'Europe/Vienna'});
+}
+function fmtCoord(lat,lon){
+  if(lat==null||lon==null) return '—';
+  return parseFloat(lat).toFixed(5)+'°N  '+parseFloat(lon).toFixed(5)+'°E';
+}
+function accClass(acc){
+  if(!acc) return '';
+  const n=parseFloat(acc);
+  if(n<=20) return 'good';
+  if(n<=60) return 'ok';
+  return 'bad';
+}
+function fmtAcc(acc){
+  if(!acc) return '—';
+  return '±'+Math.round(parseFloat(acc))+'m';
+}
+function fmtDayLabel(dateStr){
+  const d=new Date(dateStr+'T12:00:00'), t=new Date();
+  const todayStr=t.toLocaleDateString('en-CA',{timeZone:'Europe/Vienna'});
+  const yesterdayStr=new Date(t-86400000).toLocaleDateString('en-CA',{timeZone:'Europe/Vienna'});
+  if(dateStr===todayStr) return 'Heute';
+  if(dateStr===yesterdayStr) return 'Gestern';
+  const wd=d.toLocaleDateString('de-AT',{weekday:'short'}).replace('.','');
+  const day=String(d.getDate()).padStart(2,'0');
+  const mon=String(d.getMonth()+1).padStart(2,'0');
+  return `${wd} ${day}.${mon}.`;
+}
+function toViennaDate(iso){
+  return new Date(iso).toLocaleDateString('en-CA',{timeZone:'Europe/Vienna'});
+}
+function timeSince(iso){
+  const diff=Math.floor((new Date()-new Date(iso))/60000);
+  if(diff<2) return 'gerade';
+  if(diff<60) return diff+'min';
+  if(diff<1440) return Math.floor(diff/60)+'h';
+  return Math.floor(diff/1440)+'d';
+}
+function fmtDuration(min){
+  if(!min||min<1) return '<1min';
+  if(min<60) return Math.round(min)+'min';
+  const h=Math.floor(min/60), m=Math.round(min%60);
+  return m>0?h+'h '+m+'m':h+'h';
+}
+
+/* ── Tabs ── */
+let mapInitialized=false, leafletMap=null, currentDay=null;
+
+function switchTab(t,el){
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tab-timeline').classList.toggle('visible',t==='timeline');
+  document.getElementById('tab-map').classList.toggle('visible',t==='map');
+  if(t==='map') initMap();
+}
+document.getElementById('tab-btn-timeline').addEventListener('click',function(){switchTab('timeline',this);});
+document.getElementById('tab-btn-map').addEventListener('click',function(){switchTab('map',this);});
+
+/* ── Map ── */
+let osmLayer=null, satLayer=null, currentMapStyle='osm';
+
+function initMap(){
+  if(mapInitialized) return;
+  mapInitialized=true;
+  leafletMap=L.map('map',{zoomControl:true,attributionControl:true});
+  osmLayer=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:19});
+  satLayer=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{attribution:'© Esri',maxZoom:19});
+  osmLayer.addTo(leafletMap);
+  currentMapStyle='osm';
+  renderMapDay(currentDay||Object.keys(dayGroups)[0]);
+}
+
+function toggleMapStyle(){
+  if(!leafletMap) return;
+  const btn=document.getElementById('map-style-btn');
+  if(currentMapStyle==='osm'){
+    leafletMap.removeLayer(osmLayer);
+    satLayer.addTo(leafletMap);
+    document.querySelector('.leaflet-tile-pane').style.filter='none';
+    currentMapStyle='sat';
+    btn.style.borderColor='var(--accent-blue)'; btn.style.color='var(--accent-blue)'; btn.textContent='Karte';
+  } else {
+    leafletMap.removeLayer(satLayer);
+    osmLayer.addTo(leafletMap);
+    document.querySelector('.leaflet-tile-pane').style.filter='';
+    currentMapStyle='osm';
+    btn.style.borderColor='var(--border)'; btn.style.color='var(--muted)'; btn.textContent='Satellit';
+  }
+}
+
+let dayGroups={}, mapLayers=[];
+
+async function renderMapDay(day){
+  if(!leafletMap) return;
+  currentDay=day;
+  document.querySelectorAll('.day-btn').forEach(b=>{b.classList.toggle('active',b.dataset.day===day);});
+  mapLayers.forEach(l=>leafletMap.removeLayer(l));
+  mapLayers=[];
+  if(showRaw) await renderMapRaw(day);
+  else await renderMapClusters(day);
+}
+
+async function renderMapRaw(day){
+  let pts=[];
+  try{
+    const dateParam=day?`&date=${day}`:'';
+    const data=await apiFetch(`/api/locations?limit=1000&offset=0${dateParam}`);
+    pts=(data.locations||[]).sort((a,b)=>new Date(a.timestamp)-new Date(b.timestamp));
+  }catch(e){
+    pts=(day?(dayGroups[day]||[]):allPoints).slice().sort((a,b)=>new Date(a.timestamp)-new Date(b.timestamp));
+  }
+  if(!pts.length) return;
+  const coords=pts.map(p=>[parseFloat(p.latitude),parseFloat(p.longitude)]);
+  const line=L.polyline(coords,{color:'#00A6FB',weight:2,opacity:0.6}).addTo(leafletMap);
+  mapLayers.push(line);
+  pts.forEach((p,i)=>{
+    const isFirst=i===0,isLast=i===pts.length-1;
+    const marker=L.circleMarker([parseFloat(p.latitude),parseFloat(p.longitude)],{
+      radius:isFirst?7:isLast?5:3,
+      fillColor:isFirst?'#4ade80':isLast?'#FF0051':'#00A6FB',
+      fillOpacity:isFirst||isLast?0.9:0.5,
+      color:'transparent',weight:0,
+    }).addTo(leafletMap);
+    const place=p.district?`${p.district}, ${p.city||''}`:p.city||fmtCoord(p.latitude,p.longitude);
+    marker.bindPopup(`<div style="font-family:'DM Mono',monospace;font-size:11px;line-height:1.6"><strong style="font-family:'Syne',sans-serif;font-size:13px">${place}</strong><br>${fmtTime(p.timestamp)}<br>${p.temperature!=null?`${parseFloat(p.temperature).toFixed(1)}°C${p.weather_desc?' · '+p.weather_desc:''}<br>`:''}<span style="color:#666">${fmtAcc(p.accuracy)}</span></div>`,{className:'loc-popup'});
+    mapLayers.push(marker);
+  });
+  leafletMap.fitBounds(line.getBounds(),{padding:[24,24]});
+}
+
+async function renderMapClusters(day){
+  const staysRaw=day?allStays.filter(s=>toViennaDate(s.start_time)===day):allStays;
+  if(!staysRaw.length){renderMapRaw(day);return;}
+  const stays=[...staysRaw].sort((a,b)=>new Date(a.start_time)-new Date(b.start_time));
+  let rawPts=[];
+  try{
+    const dateParam=day?`&date=${day}`:'';
+    const data=await apiFetch(`/api/locations?limit=1000&offset=0${dateParam}`);
+    rawPts=(data.locations||[]).sort((a,b)=>new Date(a.timestamp)-new Date(b.timestamp));
+  }catch(e){
+    rawPts=(day?(dayGroups[day]||[]):allPoints).slice().sort((a,b)=>new Date(a.timestamp)-new Date(b.timestamp));
+  }
+  const bounds=[];
+  stays.forEach((s,i)=>{
+    const stayStart=new Date(s.start_time);
+    if(i>0){
+      const prevEnd=new Date(stays[i-1].end_time);
+      const movePts=rawPts.filter(p=>{const t=new Date(p.timestamp);return t>prevEnd&&t<stayStart;});
+      if(movePts.length>1){
+        const coords=movePts.map(p=>[parseFloat(p.latitude),parseFloat(p.longitude)]);
+        const line=L.polyline(coords,{color:'#00A6FB',weight:2.5,opacity:0.7}).addTo(leafletMap);
+        mapLayers.push(line);
+      } else {
+        const prev=stays[i-1];
+        const line=L.polyline([[parseFloat(prev.latitude),parseFloat(prev.longitude)],[parseFloat(s.latitude),parseFloat(s.longitude)]],{color:'#00A6FB',weight:1.5,opacity:0.35,dashArray:'6 4'}).addTo(leafletMap);
+        mapLayers.push(line);
+      }
+    }
+    const lat=parseFloat(s.latitude),lon=parseFloat(s.longitude);
+    bounds.push([lat,lon]);
+    const isFirst=i===0,isLast=i===stays.length-1;
+    const color=isFirst?'#4ade80':isLast?'#FF0051':'#00A6FB';
+    const radius=Math.min(8+Math.log(s.duration_minutes+1)*3,22);
+    const marker=L.circleMarker([lat,lon],{radius,fillColor:color,fillOpacity:0.8,color:'rgba(0,0,0,0.2)',weight:1}).addTo(leafletMap);
+    const place=s.name||(s.district?`${s.district}, ${s.city||''}`:s.city||fmtCoord(s.latitude,s.longitude));
+    marker.bindPopup(`<div style="font-family:'DM Mono',monospace;font-size:11px;line-height:1.6"><strong style="font-family:'Syne',sans-serif;font-size:13px">${place}</strong><br>${fmtTime(s.start_time)} – ${fmtTime(s.end_time)}<br><strong style="color:${color}">${fmtDuration(s.duration_minutes)}</strong><br>${s.avg_temperature!=null?`${parseFloat(s.avg_temperature).toFixed(1)}°C${s.weather_desc?' · '+s.weather_desc:''}`:''}</div>`,{className:'loc-popup'});
+    mapLayers.push(marker);
+  });
+  if(bounds.length>1) leafletMap.fitBounds(bounds,{padding:[40,40]});
+  else if(bounds.length===1) leafletMap.setView(bounds[0],15);
+}
+
+/* ── Weather Icons ── */
+function weatherIcon(code){
+  if(code==null) return '';
+  const c=parseInt(code);
+  if(c===0) return `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#FFB400" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="4.22" y1="4.22" x2="6.34" y2="6.34"/><line x1="17.66" y1="17.66" x2="19.78" y2="19.78"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/><line x1="4.22" y1="19.78" x2="6.34" y2="17.66"/><line x1="17.66" y1="6.34" x2="19.78" y2="4.22"/></svg>`;
+  if(c<=2)  return `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#FFB400" stroke-width="2" stroke-linecap="round"><path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/><circle cx="12" cy="12" r="3"/><path d="M16 14a4 4 0 01-8 0 4 4 0 018 0z" stroke="#aaa"/></svg>`;
+  if(c<=48) return `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="2" stroke-linecap="round"><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/></svg>`;
+  if(c<=61) return `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#00A6FB" stroke-width="2" stroke-linecap="round"><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/><line x1="8" y1="22" x2="8" y2="22"/><line x1="12" y1="22" x2="12" y2="22"/></svg>`;
+  if(c<=65) return `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#00A6FB" stroke-width="2" stroke-linecap="round"><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/><line x1="8" y1="22" x2="6" y2="24"/><line x1="12" y1="22" x2="10" y2="24"/><line x1="16" y1="22" x2="14" y2="24"/></svg>`;
+  if(c<=77) return `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#b8ebd0" stroke-width="2" stroke-linecap="round"><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/><line x1="8" y1="22" x2="8" y2="24"/><line x1="12" y1="22" x2="12" y2="24"/></svg>`;
+  if(c<=82) return `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#00A6FB" stroke-width="2" stroke-linecap="round"><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/><line x1="9" y1="22" x2="7" y2="24"/><line x1="13" y1="22" x2="11" y2="24"/></svg>`;
+  return `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#FFB400" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/><polyline points="13 11 9 17 15 17 11 23"/></svg>`;
+}
+function weatherIconFromDesc(desc){
+  if(!desc) return '';
+  const d=desc.toLowerCase();
+  if(d.includes('klar')||d.includes('sonnig'))          return weatherIcon(0);
+  if(d.includes('meist klar')||d.includes('teilweise')) return weatherIcon(1);
+  if(d.includes('bedeckt')||d.includes('bewölkt')||d.includes('nebel')) return weatherIcon(3);
+  if(d.includes('niesel'))  return weatherIcon(51);
+  if(d.includes('schauer')) return weatherIcon(80);
+  if(d.includes('regen'))   return weatherIcon(63);
+  if(d.includes('schnee'))  return weatherIcon(73);
+  if(d.includes('gewitter'))return weatherIcon(95);
+  return weatherIcon(3);
+}
+function fmtWeather(p){
+  if(p.temperature==null) return '';
+  const temp=parseFloat(p.temperature).toFixed(1)+'°C';
+  const desc=p.weather_desc||'';
+  const icon=weatherIcon(p.weather_code);
+  return `<div class="loc-weather">${icon}${temp}${desc?' · '+desc:''}</div>`;
+}
+
+/* ── API ── */
+async function apiFetch(path,method='GET',body=null){
+  const opts={method,headers:{'Content-Type':'application/json'}};
+  if(body) opts.body=JSON.stringify(body);
+  const r=await fetch(path,opts);
+  if(!r.ok) throw new Error(r.status);
+  return r.json();
+}
+
+/* ── State ── */
+let allPoints=[], allStays=[], offset=0;
+const LIMIT=200;
+let activeDay=null, showRaw=false;
+
+/* ── Raw Toggle ── */
+document.getElementById('raw-toggle').addEventListener('click',function(){
+  showRaw=!showRaw;
+  this.classList.toggle('active',showRaw);
+  renderView();
+  if(mapInitialized&&currentDay) renderMapDay(currentDay);
+});
+
+/* ── Date Filter ── */
+function buildDateFilter(){
+  const bar=document.getElementById('date-filter');
+  bar.innerHTML='';
+  const days=[...new Set([
+    ...Object.keys(dayGroups),
+    ...allStays.map(s=>toViennaDate(s.start_time))
+  ])].sort().reverse();
+
+  const allBtn=document.createElement('button');
+  allBtn.className='date-filter-btn'+(activeDay===null?' active':'');
+  allBtn.textContent='Alle';
+  allBtn.onclick=()=>setActiveDay(null);
+  bar.appendChild(allBtn);
+
+  days.forEach(day=>{
+    const btn=document.createElement('button');
+    btn.className='date-filter-btn'+(activeDay===day?' active':'');
+    btn.dataset.day=day;
+    btn.textContent=fmtDayLabel(day);
+    btn.onclick=()=>setActiveDay(day);
+    bar.appendChild(btn);
+  });
+}
+
+function setActiveDay(day){ activeDay=day; buildDateFilter(); renderView(); }
+
+async function renderView(){
+  if(showRaw) await renderTimelineFiltered();
+  else renderStays();
+}
+
+/* ── Render Stays ── */
+function renderStays(){
+  const container=document.getElementById('timeline-container');
+  container.innerHTML='';
+  const stays=activeDay?allStays.filter(s=>toViennaDate(s.start_time)===activeDay):allStays;
+  if(!stays.length){
+    container.innerHTML='<div class="state-msg">Noch keine Cluster-Daten.<br><span style="font-size:10px">clustering.py muss einmalig laufen.</span></div>';
+    return;
+  }
+  const groups={};
+  stays.forEach(s=>{const day=toViennaDate(s.start_time);if(!groups[day])groups[day]=[];groups[day].push(s);});
+  Object.entries(groups).forEach(([day,dayStays])=>{
+    const groupEl=document.createElement('div');
+    groupEl.className='day-group';
+    groupEl.innerHTML=`<div class="day-header"><span class="day-label">${fmtDayLabel(day)}</span><span class="day-count">${dayStays.length} Aufenthalte</span><div class="day-line"></div></div>`;
+    container.appendChild(groupEl);
+    dayStays.forEach((s,i)=>{
+      const card=document.createElement('div');
+      card.className='stay-card'+(s.name?' named':'');
+      card.style.animationDelay=(i*30)+'ms';
+      const place=s.district?`${s.district}, ${s.city||''}`:s.city||fmtCoord(s.latitude,s.longitude);
+      const displayName=s.name||place;
+      const showPlace=!!s.name;
+      card.innerHTML=`
+        <div>
+          <div class="stay-name">${displayName}</div>
+          ${showPlace?`<div class="stay-place">${place}</div>`:''}
+          <div class="stay-meta">
+            <span>${fmtTime(s.start_time)} – ${fmtTime(s.end_time)}</span>
+            <span>${s.point_count} Punkte</span>
+          </div>
+          ${s.avg_temperature!=null?`<div class="stay-weather">${weatherIconFromDesc(s.weather_desc)}${parseFloat(s.avg_temperature).toFixed(1)}°C${s.weather_desc?' · '+s.weather_desc:''}</div>`:''}
+        </div>
+        <div>
+          <div class="stay-duration">${fmtDuration(s.duration_minutes)}</div>
+        </div>`;
+      card.addEventListener('click',()=>openStayEdit(s));
+      groupEl.appendChild(card);
+    });
+  });
+}
+
+/* ── Stay Edit ── */
+function openStayEdit(stay){
+  document.getElementById('stay-edit-overlay')?.remove();
+  const overlay=document.createElement('div');
+  overlay.id='stay-edit-overlay';
+  overlay.className='stay-edit-overlay';
+  const place=stay.district?`${stay.district}, ${stay.city||''}`:stay.city||fmtCoord(stay.latitude,stay.longitude);
+  overlay.innerHTML=`
+    <div class="stay-edit-sheet" onclick="event.stopPropagation()">
+      <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:.25rem">Aufenthalt benennen</div>
+      <div style="font-family:'Syne',sans-serif;font-size:1rem;font-weight:700;margin-bottom:.25rem">${place}</div>
+      <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-bottom:1rem">${fmtTime(stay.start_time)} – ${fmtTime(stay.end_time)} · ${fmtDuration(stay.duration_minutes)}</div>
+      <div style="font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:4px">Name</div>
+      <input id="stay-name-input" type="text" value="${stay.name||''}" placeholder="z.B. Zuhause, Arbeit, …"
+        style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-family:'Syne',sans-serif;font-size:1rem;outline:none;margin-bottom:1rem">
+      <div style="display:flex;gap:.5rem">
+        <button onclick="saveStayName('${stay.id}')"
+          style="flex:1;font-family:'DM Mono',monospace;font-size:11px;background:var(--green);color:#0a0a0b;border:none;border-radius:8px;padding:10px;cursor:pointer;font-weight:500">Speichern</button>
+        <button onclick="document.getElementById('stay-edit-overlay').remove()"
+          style="font-family:'DM Mono',monospace;font-size:11px;background:none;border:1px solid var(--border);color:var(--muted);border-radius:8px;padding:10px 16px;cursor:pointer">Abbrechen</button>
+        ${stay.name?`<button onclick="saveStayName('${stay.id}',true)"
+          style="font-family:'DM Mono',monospace;font-size:11px;background:none;border:1px solid rgba(255,0,81,.3);color:var(--accent-red);border-radius:8px;padding:10px 14px;cursor:pointer">Entfernen</button>`:''}
+      </div>
+      <div id="stay-edit-msg" style="font-family:'DM Mono',monospace;font-size:11px;margin-top:.5rem;text-align:center"></div>
+    </div>`;
+  overlay.addEventListener('click',()=>overlay.remove());
+  document.body.appendChild(overlay);
+  document.getElementById('stay-name-input').focus();
+}
+
+async function saveStayName(stayId,remove=false){
+  const name=remove?'':(document.getElementById('stay-name-input')?.value?.trim()||'');
+  const msg=document.getElementById('stay-edit-msg');
+  try{
+    const d=await apiFetch(`/api/stay/${stayId}`,'PATCH',{name});
+    if(d.stay){
+      if(msg){msg.style.color='var(--green)';msg.textContent=remove?'✓ Entfernt':'✓ Gespeichert';}
+      const idx=allStays.findIndex(s=>s.id===stayId);
+      if(idx>=0) allStays[idx].name=d.stay.name;
+      setTimeout(()=>{document.getElementById('stay-edit-overlay')?.remove();renderView();},600);
+    }
+  }catch(e){
+    if(msg){msg.style.color='var(--accent-red)';msg.textContent='Fehler: '+e.message;}
+  }
+}
+
+/* ── Timeline filtered (Rohdaten) ── */
+async function renderTimelineFiltered(){
+  const container=document.getElementById('timeline-container');
+  if(activeDay){
+    container.innerHTML='<div class="state-msg" style="padding:1.5rem">Laden…</div>';
+    try{
+      const data=await apiFetch(`/api/locations?limit=1000&offset=0&date=${activeDay}`);
+      const points=(data.locations||[]).sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp));
+      renderTimeline(points,false);
+    }catch(e){
+      container.innerHTML=`<div class="state-msg">Fehler: ${e.message}</div>`;
+    }
+  } else {
+    renderTimeline(allPoints,false);
+  }
+}
+
+/* ── Timeline Render ── */
+function renderTimeline(points,append=false){
+  const container=document.getElementById('timeline-container');
+  if(!append) container.innerHTML='';
+  if(!points||points.length===0){
+    if(!append) container.innerHTML='<div class="state-msg">Noch keine Standortdaten.<br><span style="font-size:10px">OwnTracks sendet automatisch.</span></div>';
+    return;
+  }
+  const groups={};
+  points.forEach(p=>{const day=toViennaDate(p.timestamp);if(!groups[day])groups[day]=[];groups[day].push(p);});
+  const now=new Date(), recentThreshold=15*60*1000;
+  Object.entries(groups).forEach(([day,pts])=>{
+    let groupEl=document.getElementById('day-'+day);
+    if(!groupEl){
+      groupEl=document.createElement('div');
+      groupEl.className='day-group';
+      groupEl.id='day-'+day;
+      groupEl.innerHTML=`<div class="day-header"><span class="day-label">${fmtDayLabel(day)}</span><span class="day-count" id="count-${day}">${pts.length} Punkte</span><div class="day-line"></div></div><div class="timeline" id="tl-${day}"></div>`;
+      container.appendChild(groupEl);
+    } else {
+      const countEl=document.getElementById('count-'+day);
+      if(countEl) countEl.textContent=pts.length+' Punkte';
+    }
+    const timelineEl=document.getElementById('tl-'+day);
+    pts.forEach((p,i)=>{
+      const isRecent=(now-new Date(p.timestamp))<recentThreshold;
+      const row=document.createElement('div');
+      row.className='loc-row';
+      row.style.animationDelay=(i*20)+'ms';
+      const placeName=p.city?(p.district?`${p.district}, ${p.city}`:p.city):fmtCoord(p.latitude,p.longitude);
+      const showCoords=!!p.city;
+      row.innerHTML=`
+        <div class="loc-time-col">
+          <div class="loc-dot${isRecent?' recent':''}"></div>
+          <div class="loc-time">${fmtTime(p.timestamp)}</div>
+        </div>
+        <div class="loc-main">
+          <div class="loc-place">${placeName}</div>
+          ${showCoords?`<div class="loc-coords">${fmtCoord(p.latitude,p.longitude)}</div>`:''}
+          ${fmtWeather(p)}
+        </div>
+        <div class="loc-meta">
+          <span class="loc-acc ${accClass(p.accuracy)}">${fmtAcc(p.accuracy)}</span>
+        </div>`;
+      timelineEl.appendChild(row);
+    });
+  });
+}
+
+/* ── Day Selector for Map ── */
+function buildDaySelector(){
+  const sel=document.getElementById('day-selector');
+  sel.innerHTML='';
+  const rawDays=Object.keys(dayGroups);
+  const stayDays=allStays.map(s=>toViennaDate(s.start_time));
+  const days=[...new Set([...rawDays,...stayDays])].sort().reverse();
+
+  const allBtn=document.createElement('button');
+  allBtn.className='day-btn'+(currentDay===null?' active':'');
+  allBtn.textContent='Alle';
+  allBtn.onclick=()=>{currentDay=null;document.querySelectorAll('.day-btn').forEach(b=>b.classList.remove('active'));allBtn.classList.add('active');renderMapDay(null);};
+  sel.appendChild(allBtn);
+
+  days.forEach(day=>{
+    const btn=document.createElement('button');
+    btn.className='day-btn'+(currentDay===day?' active':'');
+    btn.dataset.day=day;
+    btn.textContent=fmtDayLabel(day);
+    btn.onclick=async()=>{await renderMapDay(day);};
+    sel.appendChild(btn);
+  });
+
+  if(!currentDay&&days.length){
+    const todayStr=new Date().toLocaleDateString('en-CA',{timeZone:'Europe/Vienna'});
+    const defaultDay=days.includes(todayStr)?todayStr:days[0];
+    const defaultBtn=sel.querySelector(`[data-day="${defaultDay}"]`);
+    if(defaultBtn){defaultBtn.classList.add('active');currentDay=defaultDay;}
+  }
+}
+
+/* ── Stats ── */
+function updateStats(totalCount,todayCount,lastPoint){
+  document.getElementById('stat-total').textContent=totalCount!=null?totalCount.toLocaleString('de-AT'):'—';
+  document.getElementById('stat-today').textContent=todayCount!=null?todayCount:'—';
+  document.getElementById('stat-last').textContent=lastPoint?timeSince(lastPoint.timestamp):'—';
+}
+
+/* ── Load ── */
+async function loadData(){
+  try{
+    const todayStr=new Date().toLocaleDateString('en-CA',{timeZone:'Europe/Vienna'});
+    const [locData,stayData,totalData,todayData]=await Promise.all([
+      apiFetch(`/api/locations?limit=${LIMIT}&offset=0`),
+      apiFetch(`/api/stays?limit=500&offset=0`),
+      apiFetch(`/api/locations?limit=1&offset=0`),
+      apiFetch(`/api/locations?limit=1&offset=0&date=${todayStr}`),
+    ]);
+    allPoints=locData.locations||[];
+    allStays=stayData.stays||[];
+    dayGroups={};
+    allPoints.forEach(p=>{const day=toViennaDate(p.timestamp);if(!dayGroups[day])dayGroups[day]=[];dayGroups[day].push(p);});
+
+    const dot=document.getElementById('statusDot');
+    const statusText=document.getElementById('statusText');
+    if(allPoints.length>0){
+      const minAgo=Math.floor((new Date()-new Date(allPoints[0].timestamp))/60000);
+      dot.style.background=minAgo<30?'var(--green)':'var(--muted)';
+      dot.style.animation=minAgo<30?'pulse 2s ease-in-out infinite':'none';
+      statusText.textContent=minAgo<30?'aktiv':'letzter: '+timeSince(allPoints[0].timestamp);
+    } else {
+      dot.style.background='var(--muted)'; dot.style.animation='none';
+      statusText.textContent='keine daten';
+    }
+
+    updateStats(totalData?.total??null,todayData?.total??null,allPoints[0]||null);
+    buildDateFilter();
+    renderView();
+    buildDaySelector();
+    if(mapInitialized&&currentDay) renderMapDay(currentDay);
+  }catch(e){
+    document.getElementById('statusDot').style.background='var(--accent-red)';
+    document.getElementById('statusText').textContent='fehler';
+    document.getElementById('timeline-container').innerHTML=`<div class="state-msg">Verbindungsfehler<br><span style="color:var(--accent-red);font-size:10px">${e.message}</span></div>`;
+  }
+}
+
+loadData();
+setInterval(loadData,60000);
+</script>
+
+</body>
+</html>

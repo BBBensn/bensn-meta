@@ -1,0 +1,21 @@
+server {
+    listen 80;
+    server_name bensn.me www.bensn.me;
+    return 301 https://bensn.me$request_uri;
+}
+server {
+    listen 443 ssl;
+    server_name bensn.me www.bensn.me;
+    ssl_certificate /etc/letsencrypt/live/bensn.me/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/bensn.me/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+    root /var/www/bensn.me;
+    index index.html;
+    location /shared/ {
+        alias /var/www/shared/;
+    }
+    location / {
+        try_files $uri $uri/ =404;
+    }
+}

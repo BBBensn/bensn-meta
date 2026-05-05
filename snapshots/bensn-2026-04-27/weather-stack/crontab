@@ -1,0 +1,6 @@
+INFLUX_URL=http://influxdb:8086
+INFLUX_TOKEN=f2e464f82e49c508d47dbbeee219e652f5b70f3f439316167b8e835ee8daf4ca
+INFLUX_ORG=home
+INFLUX_BUCKET=weather
+
+0 * * * * root /usr/local/bin/python3.12 /app/collector.py >> /var/log/weather-collector.log 2>&1

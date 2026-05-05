@@ -1,0 +1,66 @@
+services:
+
+  influxdb:
+    image: influxdb:2.7
+    container_name: weather-influxdb
+    restart: unless-stopped
+    ports:
+      - "8086:8086"
+    volumes:
+      - influxdb-data:/var/lib/influxdb2
+      - influxdb-config:/etc/influxdb2
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=admin
+      - DOCKER_INFLUXDB_INIT_PASSWORD=236646236646
+      - DOCKER_INFLUXDB_INIT_ORG=home
+      - DOCKER_INFLUXDB_INIT_BUCKET=weather
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=f2e464f82e49c508d47dbbeee219e652f5b70f3f439316167b8e835ee8daf4ca
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: weather-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=236646236646
+      - GF_SERVER_ROOT_URL=https://data.bensn.me
+      - GF_SERVER_DOMAIN=data.bensn.me
+    depends_on:
+      - influxdb
+
+  collector:
+    build: ./collector
+    container_name: weather-collector
+    restart: unless-stopped
+    environment:
+      - INFLUX_URL=http://influxdb:8086
+      - INFLUX_TOKEN=f2e464f82e49c508d47dbbeee219e652f5b70f3f439316167b8e835ee8daf4ca
+      - INFLUX_ORG=home
+      - INFLUX_BUCKET=weather
+    depends_on:
+      - influxdb
+
+  api:
+    build: ./api
+    container_name: weather-api
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - INFLUX_URL=http://influxdb:8086
+      - INFLUX_TOKEN=f2e464f82e49c508d47dbbeee219e652f5b70f3f439316167b8e835ee8daf4ca
+      - INFLUX_ORG=home
+      - INFLUX_BUCKET=weather
+      - API_KEY=mein-iphone-api-key                       # ← frei wählbar, im Shortcut eintragen
+    depends_on:
+      - influxdb
+
+volumes:
+  influxdb-data:
+  influxdb-config:
+  grafana-data:

@@ -1,0 +1,64 @@
+server {
+    listen 80;
+    server_name tracking.bensn.me;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name tracking.bensn.me;
+
+    ssl_certificate     /etc/letsencrypt/live/tracking.bensn.me/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/tracking.bensn.me/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+    root  /var/www/tracking;
+    index index.html;
+
+    # ── Auth-Verify-Proxy (intern) ────────────────────────────────────────
+    location = /auth/verify {
+        internal;
+        proxy_pass              http://127.0.0.1:5003/auth/verify;
+        proxy_pass_request_body off;
+        proxy_set_header        Content-Length "";
+        proxy_set_header        X-Original-URI $request_uri;
+        proxy_set_header        Cookie $http_cookie;
+    }
+
+    location @bensn_login_redirect {
+        return 302 https://auth.bensn.me/auth/login?next=https://tracking.bensn.me$request_uri;
+    }
+
+    # ── Shared Assets ─────────────────────────────────────────────────────
+    location /shared/ {
+        alias /var/www/shared/;
+    }
+
+    # ── API — Cookie-Auth (Nginx injiziert X-API-Key weiterhin) ──────────
+    location /api/ {
+        auth_request /auth/verify;
+        error_page 401 = @bensn_login_redirect;
+        if ($request_method = OPTIONS) {
+            add_header Access-Control-Allow-Origin  "*";
+            add_header Access-Control-Allow-Methods "GET, POST, PATCH, DELETE, OPTIONS";
+            add_header Access-Control-Allow-Headers "Content-Type, X-API-Key";
+            return 204;
+        }
+        proxy_pass             http://127.0.0.1:5001;
+        proxy_http_version     1.1;
+        proxy_set_header       Host $host;
+        proxy_set_header       X-Real-IP $remote_addr;
+        proxy_set_header       X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header       X-Forwarded-Proto $scheme;
+        proxy_set_header       X-API-Key "a9b571df1b237992f87e1126411403ff1ab57cf9aa9b9829015e4c842be8c6f5";
+        add_header             Cache-Control "no-cache";
+    }
+
+    # ── Hauptseite — Cookie-Auth ──────────────────────────────────────────
+    location / {
+        auth_request /auth/verify;
+        error_page 401 = @bensn_login_redirect;
+        try_files $uri $uri/ /index.html;
+    }
+}

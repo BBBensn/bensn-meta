@@ -1,0 +1,18 @@
+[Unit]
+Description=bensn Auth Service
+After=network.target
+
+[Service]
+User=www-data
+WorkingDirectory=/var/www/bensn-auth
+ExecStart=/usr/bin/python3 -m gunicorn \
+    --workers 1 \
+    --bind 127.0.0.1:5003 \
+    --access-logfile /var/log/bensn-auth.log \
+    --error-logfile /var/log/bensn-auth-error.log \
+    auth:app
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

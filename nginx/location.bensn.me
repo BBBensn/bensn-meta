@@ -1,0 +1,42 @@
+server {
+    server_name location.bensn.me;
+
+    root /var/www/location;
+    index index.html;
+
+    # Shared assets
+    location /shared/ {
+        alias /var/www/shared/;
+    }
+
+    # API → bensn-api Docker (mit API-Key Inject wie worktracker)
+    location /api/ {
+        proxy_pass http://127.0.0.1:5001;
+        proxy_set_header X-API-Key "a9b571df1b237992f87e1126411403ff1ab57cf9aa9b9829015e4c842be8c6f5";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    location / {
+        try_files $uri $uri/ =404;
+    }
+
+    listen 443 ssl; # managed by Certbot
+    ssl_certificate /etc/letsencrypt/live/location.bensn.me/fullchain.pem; # managed by Certbot
+    ssl_certificate_key /etc/letsencrypt/live/location.bensn.me/privkey.pem; # managed by Certbot
+    include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
+
+}
+server {
+    if ($host = location.bensn.me) {
+        return 301 https://$host$request_uri;
+    } # managed by Certbot
+
+
+    listen 80;
+    server_name location.bensn.me;
+    return 404; # managed by Certbot
+
+
+}

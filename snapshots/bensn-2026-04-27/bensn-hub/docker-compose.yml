@@ -1,0 +1,40 @@
+services:
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: bensn-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: bensn
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: bensnos
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./schema.sql:/docker-entrypoint-initdb.d/01_schema.sql
+    ports:
+      - "127.0.0.1:5432:5432"   # nur lokal erreichbar
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bensn -d bensnos"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: .
+    container_name: bensn-api
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://bensn:${POSTGRES_PASSWORD}@postgres:5432/bensnos
+      API_KEY: ${API_KEY}
+      FLASK_ENV: production
+    ports:
+      - "127.0.0.1:5001:5001"   # nur lokal, Nginx macht SSL
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./api.py:/app/api.py:ro
+      - ./requirements.txt:/app/requirements.txt:ro
+
+volumes:
+  postgres_data:

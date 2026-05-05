@@ -1,0 +1,100 @@
+server {
+    listen 80;
+    server_name feed.bensn.me;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name feed.bensn.me;
+
+    ssl_certificate     /etc/letsencrypt/live/feed.bensn.me/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/feed.bensn.me/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+    client_max_body_size 20M;
+
+    # ── Auth-Verify-Proxy (intern) ────────────────────────────────────────
+    location = /auth/verify {
+        internal;
+        proxy_pass              http://127.0.0.1:5003/auth/verify;
+        proxy_pass_request_body off;
+        proxy_set_header        Content-Length "";
+        proxy_set_header        X-Original-URI $request_uri;
+        proxy_set_header        Cookie $http_cookie;
+    }
+
+    location @bensn_login_redirect {
+        return 302 https://auth.bensn.me/auth/login?next=https://feed.bensn.me$request_uri;
+    }
+
+    # ── Shared Assets (kein Auth) ─────────────────────────────────────────
+    location /shared/ {
+        alias /var/www/shared/;
+    }
+
+    # ── Upload — API-Key Auth (bleibt wie gehabt, für Shortcuts) ──────────
+    location = /api/upload {
+        proxy_pass           http://127.0.0.1:5002;
+        proxy_set_header     Host $host;
+        proxy_set_header     X-Real-IP $remote_addr;
+        client_max_body_size 20M;
+    }
+
+    # ── Öffentliche API-Routen für /shared (kein Auth) ───────────────────
+    location = /api/feed/shared {
+        proxy_pass       http://127.0.0.1:5002;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+    location = /api/feed/combined/shared {
+        proxy_pass       http://127.0.0.1:5002;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+    location = /api/oembed {
+        proxy_pass       http://127.0.0.1:5002;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    # ── Webhook (kein Cookie, kein Basic Auth — GitHub sendet keins) ──────
+    location = /api/webhook {
+        proxy_pass       http://127.0.0.1:5002;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    # ── Alle anderen API-Routen — Cookie-Auth ─────────────────────────────
+    location /api/ {
+        auth_request /auth/verify;
+        error_page 401 = @bensn_login_redirect;
+        proxy_pass       http://127.0.0.1:5002;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    # ── Uploads (statisch, kein Auth) ────────────────────────────────────
+    location /uploads/ {
+        root /var/www/feed/public;
+    }
+
+    # ── Shared-Seite (kein Auth) ──────────────────────────────────────────
+    location = /shared {
+        root /var/www/feed/public;
+        try_files /shared.html =404;
+    }
+    location = /shared.html {
+        root /var/www/feed/public;
+    }
+
+    # ── Hauptseite — Cookie-Auth ──────────────────────────────────────────
+    location / {
+        auth_request /auth/verify;
+        error_page 401 = @bensn_login_redirect;
+        root  /var/www/feed/public;
+        index index.html;
+        try_files $uri $uri/ /index.html;
+    }
+}
