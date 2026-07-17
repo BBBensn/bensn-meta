@@ -11,6 +11,7 @@ import psycopg2.extras
 from psycopg2.extras import RealDictCursor
 import os
 import json
+import math
 from datetime import datetime, timezone
 from functools import wraps
 
@@ -86,6 +87,48 @@ def serialize(row):
 
 def serialize_list(rows):
     return [serialize(r) for r in rows]
+
+
+# ── RDP (Ramer-Douglas-Peucker) ──────────────────────────────────────────────
+def _haversine_m(lat1, lon1, lat2, lon2):
+    R = 6371000
+    phi1, phi2 = math.radians(lat1), math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlambda = math.radians(lon2 - lon1)
+    a = math.sin(dphi/2)**2 + math.cos(phi1)*math.cos(phi2)*math.sin(dlambda/2)**2
+    return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+
+def _perp_dist_m(p, a, b):
+    R = 6371000
+    mid_lat = math.radians((float(a["latitude"]) + float(b["latitude"])) / 2)
+    cos_lat = math.cos(mid_lat)
+    ax = math.radians(float(a["longitude"])) * cos_lat * R
+    ay = math.radians(float(a["latitude"])) * R
+    bx = math.radians(float(b["longitude"])) * cos_lat * R
+    by = math.radians(float(b["latitude"])) * R
+    px = math.radians(float(p["longitude"])) * cos_lat * R
+    py = math.radians(float(p["latitude"])) * R
+    dx, dy = bx - ax, by - ay
+    if dx == 0 and dy == 0:
+        return math.hypot(px - ax, py - ay)
+    t = max(0.0, min(1.0, ((px - ax)*dx + (py - ay)*dy) / (dx*dx + dy*dy)))
+    return math.hypot(px - ax - t*dx, py - ay - t*dy)
+
+
+def rdp_simplify(points, epsilon):
+    if len(points) < 3:
+        return points
+    dmax, idx = 0.0, 0
+    for i in range(1, len(points) - 1):
+        d = _perp_dist_m(points[i], points[0], points[-1])
+        if d > dmax:
+            dmax, idx = d, i
+    if dmax > epsilon:
+        left = rdp_simplify(points[:idx + 1], epsilon)
+        right = rdp_simplify(points[idx:], epsilon)
+        return left[:-1] + right
+    return [points[0], points[-1]]
 
 
 # ── Health Check ─────────────────────────────────────────────────────────────
@@ -373,6 +416,7 @@ def break_end():
     Body: {
         break_id: "uuid",           // optional – auto-detect offene Pause
         shift_id: "uuid",           // optional – für auto-detect
+        break_start: "...",         // optional, korrigiert den Startzeitpunkt
         break_end: "...",           // optional, default now
         zig_spicy: 1,
         zig_blend: 0,
@@ -413,7 +457,8 @@ def break_end():
         cur = conn.cursor()
         cur.execute("""
             UPDATE breaks
-            SET break_end = %s,
+            SET break_start = COALESCE(%s, break_start),
+                break_end = %s,
                 zig_spicy = %s,
                 zig_blend = %s,
                 break_type = COALESCE(%s, break_type),
@@ -421,6 +466,7 @@ def break_end():
             WHERE id = %s
             RETURNING *
         """, (
+            d.get("break_start"),
             break_end_ts,
             d.get("zig_spicy", 0),
             d.get("zig_blend", 0),
@@ -654,22 +700,81 @@ def log_location():
 def list_locations():
     """
     Standortverlauf abrufen.
-    Query params: limit (default 50, max 200), offset (default 0)
+    Query params: limit (default 50, max 1000), offset (default 0), date (YYYY-MM-DD Vienna time)
+                  simplify=true  — RDP-Vereinfachung aktivieren (ignoriert limit, lädt alle Punkte)
+                  epsilon        — Toleranz in Metern; ohne Angabe adaptiv nach Punktanzahl:
+                                   <200 → 5m, 200-500 → 10m, 500-1000 → 15m, >1000 → 20m
     """
-    limit  = min(int(request.args.get("limit",  50)), 200)
+    date_filter = request.args.get("date")
+    do_simplify = request.args.get("simplify", "").lower() == "true"
+    epsilon_param = request.args.get("epsilon")
+
+    cols = """id, timestamp, latitude, longitude, accuracy, altitude,
+              city, district, country, context, source, velocity, battery, device_id,
+              temperature, apparent_temp, precipitation, weather_code, weather_desc,
+              cloudcover, windspeed, is_day"""
+
+    if do_simplify:
+        if date_filter:
+            rows = db_query(f"""
+                SELECT {cols}
+                FROM location_logs
+                WHERE DATE(timestamp AT TIME ZONE 'Europe/Vienna') = %s
+                ORDER BY timestamp ASC
+            """, (date_filter,))
+            total = db_query("""
+                SELECT COUNT(*) AS n FROM location_logs
+                WHERE DATE(timestamp AT TIME ZONE 'Europe/Vienna') = %s
+            """, (date_filter,), fetchone=True)
+        else:
+            rows = db_query(f"""
+                SELECT {cols}
+                FROM location_logs
+                ORDER BY timestamp ASC
+            """)
+            total = db_query("SELECT COUNT(*) AS n FROM location_logs", fetchone=True)
+        n = len(rows)
+        if epsilon_param is not None:
+            epsilon = float(epsilon_param)
+        elif n < 200:
+            epsilon = 5.0
+        elif n < 500:
+            epsilon = 10.0
+        elif n < 1000:
+            epsilon = 15.0
+        else:
+            epsilon = 20.0
+        simplified = rdp_simplify(serialize_list(rows), epsilon)
+        return jsonify({
+            "total": total["n"] if total else 0,
+            "limit": len(simplified),
+            "offset": 0,
+            "locations": simplified
+        })
+
+    limit  = min(int(request.args.get("limit",  50)), 1000)
     offset = int(request.args.get("offset", 0))
 
-    rows = db_query("""
-        SELECT id, timestamp, latitude, longitude, accuracy, altitude,
-               city, district, country, context, source, velocity, battery, device_id,
-               temperature, apparent_temp, precipitation, weather_code, weather_desc,
-               cloudcover, windspeed, is_day
-        FROM location_logs
-        ORDER BY timestamp DESC
-        LIMIT %s OFFSET %s
-    """, (limit, offset))
-
-    total = db_query("SELECT COUNT(*) AS n FROM location_logs", fetchone=True)
+    if date_filter:
+        rows = db_query(f"""
+            SELECT {cols}
+            FROM location_logs
+            WHERE DATE(timestamp AT TIME ZONE 'Europe/Vienna') = %s
+            ORDER BY timestamp DESC
+            LIMIT %s OFFSET %s
+        """, (date_filter, limit, offset))
+        total = db_query("""
+            SELECT COUNT(*) AS n FROM location_logs
+            WHERE DATE(timestamp AT TIME ZONE 'Europe/Vienna') = %s
+        """, (date_filter,), fetchone=True)
+    else:
+        rows = db_query(f"""
+            SELECT {cols}
+            FROM location_logs
+            ORDER BY timestamp DESC
+            LIMIT %s OFFSET %s
+        """, (limit, offset))
+        total = db_query("SELECT COUNT(*) AS n FROM location_logs", fetchone=True)
 
     return jsonify({
         "total": total["n"] if total else 0,
@@ -677,6 +782,72 @@ def list_locations():
         "offset": offset,
         "locations": serialize_list(rows)
     })
+
+
+@app.route("/api/stays", methods=["GET"])
+@require_api_key
+def list_stays():
+    """
+    Aufenthalte abrufen.
+    Query params: limit (default 50), offset (default 0), date (YYYY-MM-DD Vienna time)
+    """
+    limit  = min(int(request.args.get("limit",  50)), 200)
+    offset = int(request.args.get("offset", 0))
+    date_filter = request.args.get("date")
+
+    if date_filter:
+        rows = db_query("""
+            SELECT * FROM location_stays
+            WHERE DATE(start_time AT TIME ZONE 'Europe/Vienna') = %s
+            ORDER BY start_time DESC
+            LIMIT %s OFFSET %s
+        """, (date_filter, limit, offset))
+    else:
+        rows = db_query("""
+            SELECT * FROM location_stays
+            ORDER BY start_time DESC
+            LIMIT %s OFFSET %s
+        """, (limit, offset))
+
+    total = db_query("SELECT COUNT(*) AS n FROM location_stays", fetchone=True)
+
+    return jsonify({
+        "total": total["n"] if total else 0,
+        "limit": limit,
+        "offset": offset,
+        "stays": serialize_list(rows)
+    })
+
+
+@app.route("/api/stay/<stay_id>", methods=["PATCH"])
+@require_api_key
+def update_stay(stay_id):
+    """
+    Stay Name setzen / aktualisieren.
+    Body: { "name": "Zuhause" }
+    """
+    d = request.get_json(force=True)
+    name = d.get("name", "").strip() or None
+
+    stay = db_query("SELECT id FROM location_stays WHERE id = %s", (stay_id,), fetchone=True)
+    if not stay:
+        abort(404, "Stay nicht gefunden")
+
+    conn = get_db()
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            UPDATE location_stays
+            SET name = %s, updated_at = NOW()
+            WHERE id = %s
+            RETURNING *
+        """, (name, stay_id))
+        row = cur.fetchone()
+        conn.commit()
+    finally:
+        conn.close()
+
+    return jsonify({"status": "ok", "stay": serialize(row)})
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -879,6 +1050,418 @@ def break_delete(break_id):
         return jsonify({"error": "Break not found"}), 404
     db_query("UPDATE breaks SET deleted = true WHERE id = %s", (break_id,), commit=True)
     return jsonify({"status": "deleted", "id": break_id})
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# TRACKING — Bestand & Zähler
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@app.route("/api/tracking/entries", methods=["GET"])
+@require_api_key
+def tracking_entries_list():
+    """
+    Alle Tracking-Einträge.
+    Query params: limit (default 200), item_id, category, date (YYYY-MM-DD), entry_type
+    """
+    limit      = min(int(request.args.get("limit", 200)), 1000)
+    item_id    = request.args.get("item_id")
+    category   = request.args.get("category")
+    date_filter= request.args.get("date")
+    entry_type = request.args.get("entry_type")
+
+    conditions = ["(deleted IS NULL OR deleted = false)"]
+    params     = []
+
+    if item_id:
+        conditions.append("item_id = %s"); params.append(item_id)
+    if category:
+        conditions.append("category = %s"); params.append(category)
+    if date_filter:
+        conditions.append("date = %s"); params.append(date_filter)
+    if entry_type:
+        conditions.append("entry_type = %s"); params.append(entry_type)
+
+    where = " AND ".join(conditions)
+    rows = db_query(f"""
+        SELECT * FROM tracking_entries
+        WHERE {where}
+        ORDER BY timestamp DESC
+        LIMIT %s
+    """, params + [limit])
+
+    return jsonify({
+        "count":   len(rows),
+        "entries": serialize_list(rows)
+    })
+
+
+@app.route("/api/tracking/entry", methods=["POST"])
+@require_api_key
+def tracking_entry_add():
+    """
+    Neuen Tracking-Eintrag hinzufügen.
+    Body: {
+        item_id:    "weed",
+        category:   "kiffen",
+        name:       "Weed",
+        amount:     5.0,
+        unit:       "g",
+        entry_type: "bestand" | "zaehler",
+        date:       "2026-04-21",    // Vienna local date
+        note:       "...",           // optional
+        source:     "pwa"            // optional
+    }
+    """
+    d = request.get_json(force=True)
+
+    required = ["item_id", "category", "name", "amount", "unit", "entry_type", "date"]
+    for field in required:
+        if d.get(field) is None:
+            abort(400, f"Pflichtfeld fehlt: {field}")
+
+    if d["entry_type"] not in ("bestand", "zaehler", "auffuellung", "entnahme", "delta"):
+        abort(400, "entry_type ungültig")
+
+    row = db_insert("""
+        INSERT INTO tracking_entries
+            (item_id, category, name, amount, unit, entry_type, date, note, source)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        RETURNING *
+    """, (
+        d["item_id"],
+        d["category"],
+        d["name"],
+        d["amount"],
+        d["unit"],
+        d["entry_type"],
+        d["date"],
+        d.get("note"),
+        d.get("source", "pwa"),
+    ))
+
+    return jsonify({"status": "ok", "entry": serialize(row)}), 201
+
+
+@app.route("/api/tracking/entry/<entry_id>", methods=["GET"])
+@require_api_key
+def tracking_entry_get(entry_id):
+    """Einzelnen Eintrag abrufen."""
+    row = db_query(
+        "SELECT * FROM tracking_entries WHERE id = %s AND (deleted IS NULL OR deleted = false)",
+        (entry_id,), fetchone=True
+    )
+    if not row:
+        abort(404, "Eintrag nicht gefunden")
+    return jsonify(serialize(row))
+
+
+@app.route("/api/tracking/entry/<entry_id>", methods=["PATCH"])
+@require_api_key
+def tracking_entry_update(entry_id):
+    """
+    Eintrag korrigieren.
+    Body: { amount, note }  (nur diese zwei Felder erlaubt)
+    """
+    d = request.get_json(force=True)
+
+    original = db_query(
+        "SELECT * FROM tracking_entries WHERE id = %s",
+        (entry_id,), fetchone=True
+    )
+    if not original:
+        abort(404, "Eintrag nicht gefunden")
+
+    set_clauses, values = [], []
+    if "amount" in d:
+        set_clauses.append("amount = %s"); values.append(d["amount"])
+    if "note" in d:
+        set_clauses.append("note = %s");   values.append(d["note"])
+    if not set_clauses:
+        abort(400, "Keine Felder zum Aktualisieren")
+
+    values.append(entry_id)
+    conn = get_db()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            f"UPDATE tracking_entries SET {', '.join(set_clauses)} WHERE id = %s RETURNING *",
+            values
+        )
+        row = cur.fetchone()
+        conn.commit()
+    finally:
+        conn.close()
+
+    return jsonify({"status": "ok", "entry": serialize(row)})
+
+
+@app.route("/api/tracking/entry/<entry_id>", methods=["DELETE"])
+@require_api_key
+def tracking_entry_delete(entry_id):
+    """Soft-delete."""
+    row = db_query(
+        "SELECT id FROM tracking_entries WHERE id = %s",
+        (entry_id,), fetchone=True
+    )
+    if not row:
+        abort(404, "Eintrag nicht gefunden")
+
+    db_query(
+        "UPDATE tracking_entries SET deleted = true WHERE id = %s",
+        (entry_id,), commit=True
+    )
+    return jsonify({"status": "deleted", "id": entry_id})
+
+
+@app.route("/api/tracking/bestand/<item_id>", methods=["GET"])
+@require_api_key
+def tracking_bestand(item_id):
+    """
+    Letzten Bestand + berechneten Verbrauch für ein Item.
+    Response: { item_id, latest_amount, latest_date, consumed_since, prev_amount, prev_date }
+    """
+    rows = db_query("""
+        SELECT * FROM tracking_entries
+        WHERE item_id = %s AND entry_type = 'bestand'
+          AND (deleted IS NULL OR deleted = false)
+        ORDER BY timestamp DESC
+        LIMIT 2
+    """, (item_id,))
+
+    if not rows:
+        return jsonify({"item_id": item_id, "latest_amount": None})
+
+    latest = serialize(rows[0])
+    result = {
+        "item_id":      item_id,
+        "latest_amount": latest["amount"],
+        "latest_date":   latest["date"],
+        "latest_ts":     latest["timestamp"],
+        "note":          latest.get("note"),
+        "consumed_since": None,
+        "prev_amount":   None,
+        "prev_date":     None,
+    }
+
+    if len(rows) >= 2:
+        prev = serialize(rows[1])
+        consumed = prev["amount"] - latest["amount"]
+        result["prev_amount"]    = prev["amount"]
+        result["prev_date"]      = prev["date"]
+        result["consumed_since"] = consumed if consumed > 0 else None
+
+    return jsonify(result)
+
+
+@app.route("/api/tracking/summary", methods=["GET"])
+@require_api_key
+def tracking_summary():
+    """
+    Tages-Zusammenfassung der Zähler für die letzten N Tage.
+    Query param: days (default 7)
+    """
+    days = min(int(request.args.get("days", 7)), 90)
+
+    rows = db_query("""
+        SELECT
+            date,
+            item_id,
+            name,
+            category,
+            SUM(amount) AS total_amount,
+            unit,
+            COUNT(*) AS entry_count
+        FROM tracking_entries
+        WHERE entry_type = 'zaehler'
+          AND (deleted IS NULL OR deleted = false)
+          AND date >= CURRENT_DATE - INTERVAL '%s days'
+        GROUP BY date, item_id, name, category, unit
+        ORDER BY date DESC, category, name
+    """, (days,))
+
+    return jsonify({
+        "days": days,
+        "rows": serialize_list(rows)
+    })
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# TRACKING — Kategorien & Items (Konfiguration)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@app.route("/api/tracking/categories", methods=["GET"])
+@require_api_key
+def tracking_categories_list():
+    cats = db_query("""
+        SELECT c.*,
+               json_agg(
+                   json_build_object(
+                       'id', i.id, 'slug', i.slug, 'name', i.name,
+                       'tracking_mode', i.tracking_mode, 'base_unit', i.base_unit,
+                       'unit_size', i.unit_size, 'presets', i.presets,
+                       'sort_order', i.sort_order, 'active', i.active,
+                       'counter_direction', i.counter_direction,
+                       'pack_unit', i.pack_unit, 'pack_size', i.pack_size,
+                       'buttons', COALESCE(i.buttons, '[]'::jsonb),
+                       'linked_items', COALESCE(i.linked_items, '[]'::jsonb)
+                   ) ORDER BY i.sort_order
+               ) FILTER (WHERE i.id IS NOT NULL) AS items
+        FROM tracking_categories c
+        LEFT JOIN tracking_items i ON i.category_id = c.id AND i.active = TRUE
+        GROUP BY c.id
+        ORDER BY c.sort_order
+    """)
+    return jsonify({"categories": serialize_list(cats)})
+
+
+@app.route("/api/tracking/categories", methods=["POST"])
+@require_api_key
+def tracking_category_add():
+    d = request.get_json(force=True)
+    if not d.get("name"):
+        abort(400, "name fehlt")
+    max_order = db_query("SELECT COALESCE(MAX(sort_order),0) AS m FROM tracking_categories", fetchone=True)
+    row = db_insert("""
+        INSERT INTO tracking_categories (name, emoji, color, sort_order)
+        VALUES (%s, %s, %s, %s) RETURNING *
+    """, (d["name"].strip(), d.get("emoji", "📦"), d.get("color", "muted"), (max_order["m"] or 0) + 1))
+    return jsonify({"status": "ok", "category": serialize(row)}), 201
+
+
+@app.route("/api/tracking/categories/<cat_id>", methods=["PATCH"])
+@require_api_key
+def tracking_category_update(cat_id):
+    d = request.get_json(force=True)
+    allowed = ["name", "emoji", "color", "sort_order"]
+    clauses, vals = [], []
+    for f in allowed:
+        if f in d:
+            clauses.append(f"{f} = %s"); vals.append(d[f])
+    if not clauses:
+        abort(400, "Nichts zu ändern")
+    vals.append(cat_id)
+    conn = get_db()
+    try:
+        cur = conn.cursor()
+        cur.execute(f"UPDATE tracking_categories SET {', '.join(clauses)} WHERE id = %s RETURNING *", vals)
+        row = cur.fetchone(); conn.commit()
+    finally:
+        conn.close()
+    if not row: abort(404)
+    return jsonify({"status": "ok", "category": serialize(row)})
+
+
+@app.route("/api/tracking/categories/<cat_id>", methods=["DELETE"])
+@require_api_key
+def tracking_category_delete(cat_id):
+    items = db_query("SELECT COUNT(*) AS n FROM tracking_items WHERE category_id = %s AND active = TRUE", (cat_id,), fetchone=True)
+    if items and items["n"] > 0:
+        abort(400, "Kategorie hat noch aktive Items")
+    db_query("DELETE FROM tracking_categories WHERE id = %s", (cat_id,), commit=True)
+    return jsonify({"status": "deleted", "id": cat_id})
+
+
+@app.route("/api/tracking/items", methods=["POST"])
+@require_api_key
+def tracking_item_add():
+    import re
+    d = request.get_json(force=True)
+    for f in ["category_id", "name", "base_unit"]:
+        if not d.get(f):
+            abort(400, f"{f} fehlt")
+    max_order = db_query(
+        "SELECT COALESCE(MAX(sort_order),0) AS m FROM tracking_items WHERE category_id = %s",
+        (d["category_id"],), fetchone=True
+    )
+    slug = d.get("slug") or re.sub(r'[^a-z0-9]+', '-', d["name"].lower()).strip('-')
+    existing = db_query("SELECT id FROM tracking_items WHERE slug = %s", (slug,), fetchone=True)
+    if existing:
+        slug = slug + "-" + str(int(datetime.now().timestamp()))[-4:]
+    row = db_insert("""
+        INSERT INTO tracking_items
+            (category_id, slug, name, tracking_mode, base_unit, unit_size, presets,
+             counter_direction, pack_unit, pack_size, buttons, linked_items, sort_order)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING *
+    """, (
+        d["category_id"], slug, d["name"].strip(),
+        d.get("tracking_mode", "zaehler"), d["base_unit"].strip(),
+        float(d.get("unit_size", 1)), d.get("presets", ""),
+        d.get("counter_direction", "+"),
+        d.get("pack_unit") or None,
+        float(d["pack_size"]) if d.get("pack_size") else None,
+        json.dumps(d.get("buttons", [])),
+        json.dumps(d.get("linked_items", [])),
+        (max_order["m"] or 0) + 1,
+    ))
+    return jsonify({"status": "ok", "item": serialize(row)}), 201
+
+
+@app.route("/api/tracking/items/<item_id>", methods=["PATCH"])
+@require_api_key
+def tracking_item_update(item_id):
+    d = request.get_json(force=True)
+    allowed = ["name", "tracking_mode", "base_unit", "unit_size", "presets",
+               "counter_direction", "pack_unit", "pack_size", "buttons", "linked_items",
+               "sort_order", "active", "category_id"]
+    clauses, vals = [], []
+    for f in allowed:
+        if f in d:
+            val = d[f]
+            # JSONB fields need json.dumps
+            if f in ("buttons", "linked_items"):
+                val = json.dumps(val) if not isinstance(val, str) else val
+            clauses.append(f"{f} = %s"); vals.append(val)
+    if not clauses:
+        abort(400, "Nichts zu ändern")
+    vals.append(item_id)
+    conn = get_db()
+    try:
+        cur = conn.cursor()
+        cur.execute(f"UPDATE tracking_items SET {', '.join(clauses)} WHERE id = %s RETURNING *", vals)
+        row = cur.fetchone(); conn.commit()
+    finally:
+        conn.close()
+    if not row: abort(404)
+    return jsonify({"status": "ok", "item": serialize(row)})
+
+
+@app.route("/api/tracking/items/<item_id>", methods=["DELETE"])
+@require_api_key
+def tracking_item_delete(item_id):
+    db_query("UPDATE tracking_items SET active = FALSE WHERE id = %s", (item_id,), commit=True)
+    return jsonify({"status": "deleted", "id": item_id})
+
+
+@app.route("/api/tracking/entries/batch", methods=["POST"])
+@require_api_key
+def tracking_entries_batch():
+    """
+    Mehrere Einträge auf einmal buchen (für verknüpfte Items).
+    Body: { "entries": [ {item_id, category, name, amount, unit, entry_type, date}, ... ] }
+    """
+    d = request.get_json(force=True)
+    entries = d.get("entries", [])
+    if not entries:
+        abort(400, "entries fehlt")
+
+    results = []
+    for e in entries:
+        for f in ["item_id", "category", "name", "amount", "unit", "entry_type", "date"]:
+            if e.get(f) is None:
+                abort(400, f"Pflichtfeld fehlt: {f}")
+        row = db_insert("""
+            INSERT INTO tracking_entries
+                (item_id, category, name, amount, unit, entry_type, date, note, source)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING *
+        """, (
+            e["item_id"], e["category"], e["name"], e["amount"],
+            e["unit"], e["entry_type"], e["date"],
+            e.get("note"), e.get("source", "pwa"),
+        ))
+        results.append(serialize(row))
+
+    return jsonify({"status": "ok", "count": len(results), "entries": results}), 201
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=False)
