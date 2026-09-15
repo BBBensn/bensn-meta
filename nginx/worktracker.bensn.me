@@ -1,40 +1,65 @@
 server {
-    if ($host = worktracker.bensn.me) {
-        return 301 https://$host$request_uri;
-    }
     listen 80;
     server_name worktracker.bensn.me;
     return 301 https://$host$request_uri;
 }
+
 server {
     listen 443 ssl;
     server_name worktracker.bensn.me;
-    ssl_certificate /etc/letsencrypt/live/worktracker.bensn.me/fullchain.pem;
+
+    ssl_certificate     /etc/letsencrypt/live/worktracker.bensn.me/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/worktracker.bensn.me/privkey.pem;
     include /etc/letsencrypt/options-ssl-nginx.conf;
-    root /var/www/worktracker;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+    root  /var/www/worktracker;
     index index.html;
+
+    # ── Auth-Verify-Proxy (intern, kein Auth darauf) ──────────────────────
+    location = /auth/verify {
+        internal;
+        proxy_pass              http://127.0.0.1:5003/auth/verify;
+        proxy_pass_request_body off;
+        proxy_set_header        Content-Length "";
+        proxy_set_header        X-Original-URI $request_uri;
+        proxy_set_header        Cookie $http_cookie;
+    }
+
+    # ── Login-Redirect (bei 401) ──────────────────────────────────────────
+    location @bensn_login_redirect {
+        return 302 https://auth.bensn.me/auth/login?next=https://worktracker.bensn.me$request_uri;
+    }
+
+    # ── Shared Assets (kein Auth nötig — nur CSS/JS) ──────────────────────
     location /shared/ {
         alias /var/www/shared/;
     }
+
+    # ── API: iOS Shortcuts & OwnTracks — Auth per X-API-Key (kein Cookie) ─
+    # Nginx injiziert den API-Key weiterhin, daher kein auth_request hier.
     location /api/ {
-    if ($request_method = OPTIONS) {
-        add_header Access-Control-Allow-Origin "*";
-        add_header Access-Control-Allow-Methods "GET, POST, PATCH, OPTIONS";
-        add_header Access-Control-Allow-Headers "Content-Type, X-API-Key";
-        return 204;
+        if ($request_method = OPTIONS) {
+            add_header Access-Control-Allow-Origin  "*";
+            add_header Access-Control-Allow-Methods "GET, POST, PATCH, DELETE, OPTIONS";
+            add_header Access-Control-Allow-Headers "Content-Type, X-API-Key";
+            return 204;
+        }
+        proxy_pass             http://127.0.0.1:5001;
+        proxy_http_version     1.1;
+        proxy_set_header       Host $host;
+        proxy_set_header       X-Real-IP $remote_addr;
+        proxy_set_header       X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header       X-Forwarded-Proto $scheme;
+        proxy_set_header       X-API-Key "a9b571df1b237992f87e1126411403ff1ab57cf9aa9b9829015e4c842be8c6f5";
+        add_header             Cache-Control "no-cache";
+        add_header             Access-Control-Allow-Origin "*";
     }
-    proxy_pass http://127.0.0.1:5001;
-    proxy_http_version 1.1;
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-    proxy_set_header X-API-Key "a9b571df1b237992f87e1126411403ff1ab57cf9aa9b9829015e4c842be8c6f5";
-    add_header Cache-Control "no-cache";
-    add_header Access-Control-Allow-Origin "*";
-}
+
+    # ── Hauptseite & alle statischen Dateien — Cookie-Auth ───────────────
     location / {
+        auth_request /auth/verify;
+        error_page 401 = @bensn_login_redirect;
         try_files $uri $uri/ /index.html;
     }
 }

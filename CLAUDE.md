@@ -27,28 +27,36 @@ Dieses Repo enthält: Auth-Service-Code, API-Versionen, nginx-Configs und Server
 │       ├── auth.py           (Flask, Port 5003, gunicorn)
 │       ├── bensn-auth.service
 │       ├── DEPLOY.sh
-│       └── nginx-*.conf      (Configs für alle Domains)
+│       └── nginx-snippet-bensn-auth.conf   (wiederverwendbares auth_request-Snippet)
 ├── hub-versions/
 │   └── v3.0.0/
 │       └── api.py            ← bensn Personal OS API (Flask + PostgreSQL, Port 5001)
-├── nginx/                    ← nginx site configs (aktueller Stand)
+│                                — verifiziert identisch mit `docker exec bensn-api cat /app/api.py`
+├── nginx/                    ← nginx site configs, direkt vom Server gezogen (aktueller Stand)
 │   ├── bensn.me
+│   ├── auth.bensn.me
 │   ├── data.bensn.me
 │   ├── feed.bensn.me
 │   ├── location.bensn.me
 │   ├── pdf.bensn.me
 │   ├── tracking.bensn.me
 │   └── worktracker.bensn.me
+├── schema.sql                ← aktuelles Schema, per `pg_dump --schema-only` gezogen (siehe unten)
 ├── snapshots/
-│   └── bensn-2026-04-27/    ← Vollständiger Server-Snapshot
-│       ├── bensn-hub/        (API + docker-compose.yml + schema.sql)
-│       ├── feed/, landing/, location/, worktracker/
-│       ├── nginx/, systemd/, shared/
-│       └── weather-stack/, stirling-pdf/
+│   └── bensn-2026-04-27/    ← Vollständiger Server-Snapshot (Archiv-Referenz, NICHT aktueller Stand —
+│                               das veraltete schema.sql/nginx darin gehört zum 27.4.-Zeitpunkt)
 ├── docs/
 │   └── changelogs/
 └── CLAUDE.md
 ```
+
+**Hinweis aus dem Repo-Restructure (2026-09):** `nginx/*` und `schema.sql` waren vorher an
+mehreren Stellen dupliziert und teils veraltet — z.B. hatte `nginx/feed.bensn.me` noch die
+alte Nginx-Basic-Auth-Config, obwohl der Server längst auf das Cookie-System migriert war,
+und `auth/bensn-auth-v2/` enthielt eigene, ebenfalls veraltete Kopien von `nginx-feed.bensn.me`
+etc. plus alte `feed-index.html`/`tracking-index.html`-Snapshots. Alles wurde gegen den
+tatsächlichen Server-Stand verifiziert (`ssh bensn cat /etc/nginx/sites-enabled/...`) und
+die Duplikate entfernt — `nginx/` ist jetzt die einzige Quelle für aktuelle Configs.
 
 ---
 
@@ -99,8 +107,13 @@ Dieses Repo enthält: Auth-Service-Code, API-Versionen, nginx-Configs und Server
 | feed.bensn.me | /var/www/feed/public + Port 5002 | nginx Basic Auth für /api/ |
 | location.bensn.me | /var/www/location + Port 5001 | nginx injiziert X-API-Key |
 | tracking.bensn.me | /var/www/tracking + Port 5001 | nginx injiziert X-API-Key |
-| data.bensn.me | Port 3000 (Grafana) | [placeholder] |
-| pdf.bensn.me | Port 8081 (Stirling-PDF) | [placeholder] |
+| data.bensn.me | Port 3000 (Grafana) | Grafana-eigenes Login |
+| pdf.bensn.me | Port 8081 (Stirling-PDF) | Stirling-eigenes Login |
+
+*(Weitere Domains laufen auf demselben Server für unabhängige Nebenprojekte — z.B.
+`library.bensn.me`, `market.bensn.me`, `stream.bensn.me`, `crossword.bensn.me`,
+`games.bensn.at` — die nicht Teil dieses Repos/Umbaus sind, aber teils dieselbe
+Postgres-Instanz nutzen, siehe `library_items`/`wishlist_items` unten.)*
 
 ---
 
@@ -116,8 +129,10 @@ Dieses Repo enthält: Auth-Service-Code, API-Versionen, nginx-Configs und Server
 - nginx injiziert den Key automatisch für worktracker, location, tracking
 - API prüft per `require_api_key` Decorator (Header oder Query-Param)
 
-**Feed Basic Auth:**
-- feed.bensn.me nutzt nginx `auth_basic` mit `/etc/nginx/.htpasswd` für `/api/`
+**Feed:** nutzt seit v1.7.x ebenfalls das Cookie-System (`auth_request`), NICHT mehr
+Nginx Basic Auth — mit gezielten unauthentifizierten Ausnahmen für `/api/upload`,
+`/api/feed/shared`, `/api/feed/combined/shared`, `/api/oembed`, `/api/webhook`,
+`/shared`, `/s`, `/uploads/` (siehe `nginx/feed.bensn.me`).
 
 ---
 
@@ -153,9 +168,20 @@ ssh bensn "systemctl daemon-reload && systemctl restart bensn-auth"
 - **User:** `bensn`
 - **Port:** `127.0.0.1:5432` (nur lokal erreichbar)
 - **Docker Compose:** `/root/bensn-hub/docker-compose.yml`
-- **Schema:** `/root/bensn-hub/schema.sql`
+- **Schema:** `schema.sql` in diesem Repo (per `pg_dump --schema-only` vom Server gezogen,
+  Stand 2026-09-16 — verlässlicher als das ältere `snapshots/.../schema.sql`)
 
-Tabellen: `shifts`, `breaks`, `sleep_logs`, `mood_logs`, `health_logs`, `location_logs`, `obsidian_entries`
+**Aktiv genutzte Tabellen:** `shifts`, `breaks`, `sleep_logs`, `location_logs`, `location_stays`,
+`tracking_categories`, `tracking_items`, `tracking_entries`, `mood_logs` (geschrieben, aber
+nicht das, was der Feed als "Mood" anzeigt — das kommt noch aus Obsidian-Notes, siehe unten),
+`shares` (Feed-Sharing-Tokens)
+
+**Tot/write-only (Kandidaten für Aufräumen, siehe Roadmap):** `health_logs` (nie gelesen),
+`obsidian_entries` (nie befüllt), `feed_items` (nirgends referenziert)
+
+**Gehören NICHT zu diesem Projekt** (dieselbe DB, andere Nebenprojekte): `library_items`,
+`wishlist_items`
+
 Views: `current_shift`, `daily_summary`
 
 ---
@@ -178,13 +204,20 @@ Views: `current_shift`, `daily_summary`
 | PATCH | /api/break/`<id>`/correct | Pause korrigieren |
 | DELETE | /api/break/`<id>` | Pause soft-löschen |
 | POST | /api/health/sleep | Schlaf eintragen (upsert by date) |
-| POST | /api/health/mood | Stimmung eintragen |
-| POST | /api/health/log | Gesundheitsdaten (Schritte, Gewicht, Medikamente) |
+| POST | /api/health/mood | Stimmung eintragen (siehe Hinweis zu `mood_logs` oben) |
+| POST | /api/health/log | schreibt in `health_logs` — write-only, nirgends gelesen (Aufräum-Kandidat) |
 | POST | /api/location | Standort (OwnTracks + Shortcut Format) |
-| GET | /api/locations | Standortverlauf (limit/offset) |
-| GET | /api/feed | Kombinierter Feed (shifts, mood, sleep, obsidian) |
+| GET | /api/locations | Standortverlauf (limit/offset, `simplify=true` für RDP-Vereinfachung) |
+| GET | /api/stays | Geclusterte Aufenthalte |
+| PATCH | /api/stay/`<id>` | Aufenthalt umbenennen |
+| GET | /api/feed | Kombinierter Feed (shifts, mood, sleep, obsidian) — eigenständig von feed-api's `/api/feed/combined` |
 | GET | /api/stats/weekly | Wochenübersicht |
 | GET | /api/stats/shift-summary | Zusammenfassung nach Schichttyp |
+| GET/POST/PATCH/DELETE | /api/tracking/entries, /entry, /entry/`<id>` | Tracking-Einträge CRUD |
+| GET | /api/tracking/bestand/`<item_id>` | Aktueller Bestand + Verbrauch seit letztem Eintrag |
+| GET | /api/tracking/summary | Tages-Zähler-Zusammenfassung |
+| GET/POST/PATCH/DELETE | /api/tracking/categories, /items | Kategorien/Items-Konfiguration |
+| POST | /api/tracking/entries/batch | Mehrere verknüpfte Einträge atomar (linked_items) |
 
 ---
 
@@ -197,7 +230,10 @@ Views: `current_shift`, `daily_summary`
 
 ## Projekt-spezifische Konventionen
 
-- nginx-Configs lokal in `nginx/` pflegen → per scp deployen → `nginx -t && reload`
+- nginx-Configs lokal in `nginx/` pflegen (einzige Quelle, keine Zweitkopien in `auth/`) →
+  per scp deployen → `nginx -t && reload`
+- Bei Unsicherheit über den Live-Stand: `ssh bensn "cat /etc/nginx/sites-enabled/<domain>"`
+  gegen die lokale Datei diffen, nicht blind vertrauen
 - Auth-Service-Code ausschließlich in `auth/bensn-auth-v2/` — `bensn-auth/` ist veraltet
 - Neue API-Versionen in `hub-versions/vX.X.X/` archivieren
 - Snapshots bei größeren Infra-Änderungen in `snapshots/[name]-[YYYY-MM-DD]/` ablegen
@@ -210,8 +246,11 @@ Views: `current_shift`, `daily_summary`
 
 | Version | Feature | Status |
 |---------|---------|--------|
-| v1.0.0 | Meta-Repo Setup: Auth v2, API v3.0.0, nginx-Configs, Snapshots | aktiv |
-| v1.1.0 | [placeholder] | geplant |
+| v1.0.0 | Meta-Repo Setup: Auth v2, API v3.0.0, nginx-Configs, Snapshots | ✅ done |
+| — | nginx-Configs + schema.sql gegen Live-Server verifiziert, Duplikate entfernt | ✅ done |
+| — | Neuer Service `health-api` (Port 5004) für Medikamente/Blutdruck/Mahlzeiten | ⬜ geplant |
+| — | `journal_entries`-Schema (Postgres) für die geplante Obsidian-Ablösung im Feed | ⬜ geplant |
+| — | `health_logs`, `obsidian_entries`, `feed_items` droppen (aktuell tot/write-only) | ⬜ geplant |
 
 ---
 
