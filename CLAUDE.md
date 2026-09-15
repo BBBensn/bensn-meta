@@ -92,8 +92,13 @@ die Duplikate entfernt — `nginx/` ist jetzt die einzige Quelle für aktuelle C
 | bensn-api | 5001 | Docker: `bensn-api` Container |
 | bensn-postgres | 5432 | Docker: `bensn-postgres` Container (localhost only) |
 | feed-api | 5002 | systemd: `feed-api.service` |
+| health-api | 5008 | Docker: `bensn-health-api` Container (siehe `health`-Repo) |
 | Grafana | 3000 | Docker (`data.bensn.me`) |
 | Stirling-PDF | 8081 | Docker (`pdf.bensn.me`) |
+
+**5004–5007 sind belegt von anderen Projekten auf demselben Server** (u.a. BubenMarket auf
+5004) — vor jeder neuen Port-Reservierung `ssh bensn "ss -tlnp"` prüfen, nicht nur die Doku.
+Nächster tatsächlich freier Port: **5009**.
 
 ---
 
@@ -103,10 +108,11 @@ die Duplikate entfernt — `nginx/` ist jetzt die einzige Quelle für aktuelle C
 |--------|------|------|
 | bensn.me | /var/www/bensn.me (static) | öffentlich |
 | auth.bensn.me | Port 5003 | — (ist selbst Auth) |
-| worktracker.bensn.me | /var/www/worktracker + Port 5001 | nginx injiziert X-API-Key |
-| feed.bensn.me | /var/www/feed/public + Port 5002 | nginx Basic Auth für /api/ |
-| location.bensn.me | /var/www/location + Port 5001 | nginx injiziert X-API-Key |
-| tracking.bensn.me | /var/www/tracking + Port 5001 | nginx injiziert X-API-Key |
+| worktracker.bensn.me | /var/www/worktracker + Port 5001 | Cookie (bensn-auth) + nginx injiziert X-API-Key |
+| feed.bensn.me | /var/www/feed/public + Port 5002 | Cookie (bensn-auth), gezielte öffentliche Ausnahmen |
+| health.bensn.me | /var/www/health + Port 5008 | Cookie (bensn-auth) + nginx injiziert X-API-Key |
+| location.bensn.me | /var/www/location + Port 5001 | Cookie (bensn-auth) + nginx injiziert X-API-Key |
+| tracking.bensn.me | /var/www/tracking + Port 5001 | Cookie (bensn-auth) + nginx injiziert X-API-Key |
 | data.bensn.me | Port 3000 (Grafana) | Grafana-eigenes Login |
 | pdf.bensn.me | Port 8081 (Stirling-PDF) | Stirling-eigenes Login |
 
@@ -248,7 +254,7 @@ Views: `current_shift`, `daily_summary`
 |---------|---------|--------|
 | v1.0.0 | Meta-Repo Setup: Auth v2, API v3.0.0, nginx-Configs, Snapshots | ✅ done |
 | — | nginx-Configs + schema.sql gegen Live-Server verifiziert, Duplikate entfernt | ✅ done |
-| — | Neuer Service `health-api` (Port 5004) für Medikamente/Blutdruck/Mahlzeiten | ⬜ geplant |
+| — | Neuer Service `health-api` (Port 5008 — 5004-5007 waren schon durch andere Projekte belegt) für Medikamente/Blutdruck/Mahlzeiten | ✅ deployed (2026-09-16, Code im `health`-Repo) |
 | — | `journal_entries`-Schema (Postgres) für die geplante Obsidian-Ablösung im Feed | ⬜ geplant |
 | — | `health_logs`, `obsidian_entries`, `feed_items` droppen (aktuell tot/write-only) | ⬜ geplant |
 
