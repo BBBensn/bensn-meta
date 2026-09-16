@@ -47,7 +47,9 @@ code.chip { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--mut
 .export-box { display: none; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1rem; font-family: 'DM Mono', monospace; font-size: 11px; line-height: 1.7; white-space: pre-wrap; margin-top: 1rem; color: var(--text); }
 
 .inconsistency-item { border: 1px solid rgba(255,180,0,.25); background: rgba(255,180,0,.04); border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: .8rem; }
+.inconsistency-item.resolved { border-color: rgba(74,222,128,.25); background: rgba(74,222,128,.04); }
 .inconsistency-title { font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: .04em; color: #ffb400; margin-bottom: 6px; }
+.inconsistency-item.resolved .inconsistency-title { color: var(--green); }
 .inconsistency-desc { font-size: .83rem; color: var(--muted); line-height: 1.65; }
 .inconsistency-desc code { font-family: 'DM Mono', monospace; font-size: .8em; color: var(--text); }
 
@@ -62,8 +64,8 @@ code.chip { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--mut
 .gd-pill.prn { border-color: rgba(0,166,251,0.4); color: var(--accent-blue); }
 .gd-btn-add-block { font-family: "DM Mono", monospace; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.8rem 1.2rem; border-radius: 10px; border: 1px dashed var(--border); background: none; color: var(--muted); cursor: pointer; }
 .gd-btn-add-block:hover { border-color: var(--border-hover); color: var(--text); }
-.gd-stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 0.9rem 1rem; min-width: 140px; }
-.gd-stat-label { font-family: "DM Mono", monospace; font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+.gd-stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 0.9rem 1rem; min-width: 140px; }
+.gd-stat-label { font-family: "DM Mono", monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
 .gd-stat-value { font-family: "Syne", sans-serif; font-weight: 800; font-size: 1.4rem; }
 .gd-stat-sub { font-family: "DM Mono", monospace; font-size: 10px; color: var(--muted); margin-top: 2px; }
 
@@ -85,7 +87,6 @@ code.chip { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--mut
 .gd-badge.zaehler { background: rgba(0,166,251,0.08); border: 1px solid rgba(0,166,251,0.2); color: var(--accent-blue); }
 .gd-badge.auffuellung { background: rgba(74,222,128,0.08); border: 1px solid rgba(74,222,128,0.2); color: var(--green); }
 .gd-badge.entnahme { background: rgba(255,0,81,0.08); border: 1px solid rgba(255,0,81,0.2); color: var(--accent-red); }
-.gd-btn-danger { font-family: "DM Mono", monospace; font-size: 11px; background: none; border: 1px solid rgba(255,0,81,0.3); color: var(--accent-red); border-radius: 8px; padding: 11px 14px; cursor: pointer; }
 
 /* lokal in health/tracking: sheet-input, input-row, note-input */
 .gd-sheet-input { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 9px 12px; color: var(--text); font-family: 'DM Mono', monospace; font-size: 13px; outline: none; }
@@ -105,11 +106,9 @@ code.chip { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--mut
 .gd-wt-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; }
 .gd-wt-badge { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; padding: 4px 10px; border: 1px solid rgba(74,222,128,0.3); color: var(--green); border-radius: 4px; }
 .gd-wt-stats { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; }
-.gd-wt-stat { background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+.gd-wt-stat { background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 12px; padding: 12px; }
 .gd-wt-stat-val { font-family: 'DM Mono', monospace; font-size: 1.05rem; font-weight: 500; }
-.gd-wt-stat-label { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-top: 5px; }
-.gd-wt-del-a { font-family:'DM Mono',monospace; font-size:11px; letter-spacing:.06em; background:none; border:1px solid rgba(255,0,81,.3); color:var(--accent-red); border-radius:8px; padding:8px 16px; cursor:pointer; }
-.gd-wt-del-b { font-family:'DM Mono',monospace; font-size:11px; background:none; border:1px solid rgba(255,0,81,.3); color:var(--accent-red); border-radius:8px; padding:10px 14px; cursor:pointer; }
+.gd-wt-stat-label { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-top: 5px; }
 
 .overlay-demo-trigger { display: inline-block; }
 .gd-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.75); z-index: 200; display: none; align-items: flex-end; justify-content: center; }
@@ -246,13 +245,12 @@ code.chip { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--mut
       </div>
     </div>
 
-    <div class="guide-source">lokal in tracking/index.html — .btn-unit, .btn-icon, .btn-add, .mode-btn/.sheet-toggle-btn, .btn-danger</div>
+    <div class="guide-source">lokal in tracking/index.html — .btn-unit, .btn-icon, .btn-add, .mode-btn/.sheet-toggle-btn</div>
     <div class="demo-block">
       <div class="demo-row">
         <button class="gd-btn-unit">+10 Dag</button>
         <button class="gd-btn-icon">✎</button>
         <button class="gd-btn-add">+ Kategorie</button>
-        <button class="gd-btn-danger">Löschen (Sheet-Variante)</button>
       </div>
       <div class="demo-row">
         <div class="gd-toggle-row">
@@ -262,11 +260,12 @@ code.chip { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--mut
       </div>
     </div>
 
-    <div class="guide-source">lokal in worktracker/index.html — 2 unvereinheitlichte Löschen-Varianten (siehe Inkonsistenzen)</div>
+    <div class="guide-source">shared/bensn.css — Löschen-in-Sheet jetzt überall .btn-pill.red (vorher: eigenes .btn-danger in tracking, 2 eigene Inline-Varianten in worktracker)</div>
     <div class="demo-block">
       <div class="demo-row">
-        <button class="gd-wt-del-a">Löschen (Schicht-Formular)</button>
-        <button class="gd-wt-del-b">Löschen (Pause)</button>
+        <button class="btn-pill red">Löschen (Kategorie/Item, tracking)</button>
+        <button class="btn-pill red">Löschen (Schicht, worktracker)</button>
+        <button class="btn-pill red">Löschen (Pause, worktracker)</button>
       </div>
     </div>
 
@@ -457,20 +456,21 @@ code.chip { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--mut
     <p class="guide-section-desc">Beim Durchgehen aller Services gefunden, noch nicht angeglichen —
       bewusst nicht selbstständig vereinheitlicht, da das echte Design-Entscheidungen sind.</p>
 
-    <div class="inconsistency-item">
-      <div class="inconsistency-title">Zwei "Destruktiv-Button-in-Sheet"-Größen</div>
-      <div class="inconsistency-desc">health.bensn.me nutzt für Löschen-Aktionen innerhalb von Sheets die
-        kleine <code>.btn-pill.red</code> (10px, 6×12px Padding). tracking.bensn.me hat dafür eine eigene,
-        größere <code>.btn-danger</code> (11px, 11×14px Padding, 8px Radius). Gleiche Aufgabe, zwei Größen.</div>
+    <div class="inconsistency-item resolved">
+      <div class="inconsistency-title">✓ Gelöst — zwei "Destruktiv-Button-in-Sheet"-Größen</div>
+      <div class="inconsistency-desc">tracking.bensn.mes eigenes, größeres <code>.btn-danger</code> (11px,
+        11×14px Padding) ist entfernt — Löschen-in-Sheet ist jetzt überall <code>.btn-pill.red</code>
+        (2026-09-16).</div>
     </div>
 
-    <div class="inconsistency-item">
-      <div class="inconsistency-title">worktracker: 2 Löschen-Buttons, keiner einheitlich</div>
+    <div class="inconsistency-item resolved">
+      <div class="inconsistency-title">✓ Gelöst — worktracker: 2 Löschen-Buttons, keiner einheitlich</div>
       <div class="inconsistency-desc">Die "Löschen"-Buttons im Schicht-Bearbeiten-Formular
-        (<code>saveEdit</code>-Zeile: 8×16px Padding) und bei Pausen (<code>deleteBreak</code>: 10×14px
-        Padding) unterscheiden sich sowohl voneinander als auch von <code>.btn-pill.red</code> — bisher
-        nicht angefasst, da eine Vereinheitlichung hier eine echte Entscheidung braucht (welche Größe
-        gewinnt).</div>
+        (<code>deleteShift</code>) und bei Pausen (<code>deleteBreak</code>) nutzen jetzt beide
+        <code>.btn-pill.red</code> statt zweier eigener, sich unterscheidender Inline-Styles (2026-09-16).
+        Nebenbei entdeckt, noch offen: die zugehörigen Speichern/Abbrechen-Buttons in denselben
+        Formularzeilen sind ebenfalls Inline und weichen leicht von <code>.btn-save</code>/<code>.btn-cancel</code>
+        ab — eigener Punkt für später.</div>
     </div>
 
     <div class="inconsistency-item">
@@ -483,20 +483,34 @@ code.chip { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--mut
         entstandenen App-Konventionen teilgenommen.</div>
     </div>
 
-    <div class="inconsistency-item">
-      <div class="inconsistency-title">Border-Radius-Skala nicht konsistent</div>
-      <div class="inconsistency-desc">Im System kursieren mindestens vier Werte für "abgerundete Ecke":
-        8px (<code>.wt-stat</code>, <code>.btn-save</code>), 10px (<code>.quick-btn</code>, <code>.stat-card</code>),
-        12px (<code>.item-card</code>, <code>.text-input</code>, <code>.settings-cat</code>), 16px
-        (<code>.card</code>, <code>.wt-card</code>) — kein einheitliches Spacing-/Radius-Raster.</div>
+    <div class="inconsistency-item resolved">
+      <div class="inconsistency-title">Teilweise gelöst — Border-Radius auf 2 Stufen für die "Container/Tile"-Familie</div>
+      <div class="inconsistency-desc">Entschieden: 2 Stufen — <strong>klein</strong> (12px) für Tiles/Item-Reihen/
+        Settings-Gruppen, <strong>groß</strong> (16px) für Cards. <code>.wt-stat</code>, <code>.wt-cig</code>
+        und health.bensn.mes <code>.stat-card</code> waren die Ausreißer (8px/10px) und wurden auf 12px
+        angeglichen — passt jetzt zu <code>.item-card</code>/<code>.settings-cat</code>/<code>.quick-btn</code>/
+        <code>.wt-shift-row</code>, die schon vorher 12px waren. <code>.card</code>/<code>.wt-card</code>
+        waren schon beide 16px, keine Änderung nötig.<br><br>
+        <strong>Bewusst nicht angefasst:</strong> Radius bei Buttons/Inputs/Badges (<code>.btn-pill</code> 6px,
+        <code>.btn-save</code>/<code>.btn-cancel</code>/<code>.sheet-input</code> 8px, <code>.pill</code> 20px
+        rund) — das ist eine andere Komponenten-Familie (Controls statt Container) mit eigener,
+        bereits in sich stimmiger Logik. Eine vollständige Zählung ergab tatsächlich >10 verschiedene
+        Radius-Werte systemweit, wenn man Buttons/Badges/Chips mitzählt — die 2-Stufen-Entscheidung
+        gilt bewusst nur für die ursprünglich genannte Container/Tile-Familie.</div>
     </div>
 
-    <div class="inconsistency-item">
-      <div class="inconsistency-title">"Kleines Mono-Label" in 3 Schriftgrößen</div>
-      <div class="inconsistency-desc"><code>9px</code> (<code>.wt-stat-label</code>, <code>.stat-label</code>,
-        <code>.pill</code>), <code>10px</code> (<code>.section-label</code>, <code>.tag</code>, die meisten
-        Labels), <code>11px</code> (<code>.sheet-input</code>-Text, <code>.wt-table</code>) — funktional
-        dieselbe Rolle (kleine, gedämpfte Meta-Info), drei Größen im Umlauf.</div>
+    <div class="inconsistency-item resolved">
+      <div class="inconsistency-title">Teilweise gelöst — die genannten 9px-Labels auf 10px angeglichen</div>
+      <div class="inconsistency-desc"><code>.wt-stat-label</code>, <code>.wt-cig-label</code>,
+        <code>.wt-table th</code>, health.bensn.mes <code>.stat-label</code> und <code>.pill</code> liefen
+        auf 9px, während <code>.section-label</code>/<code>.tag</code>/die meisten anderen Labels schon
+        10px waren — auf 10px angeglichen.<br><br>
+        <strong>Bewusst nicht angefasst:</strong> beim Umsetzen zeigte sich, dass 9px-Text weit verbreiteter
+        ist als hier ursprünglich beschrieben — u.a. worktrackers komplettes Formular-Label-System
+        ("Datum"/"Von"/"Bis"/"Typ" etc., 13+ konsistente Stellen) sowie einzelne Labels in
+        feed.bensn.me und location.bensn.me. Das ist teils ein eigener, in sich konsistenter
+        App-interner Standard und keine reine Drift — eine Angleichung dort ist ein eigener,
+        größerer Schritt, kein Nebeneffekt dieser Aufräumrunde.</div>
     </div>
   </section>
 
