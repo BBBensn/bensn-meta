@@ -1,0 +1,571 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Design System · bensn.me</title>
+<meta name="theme-color" content="#0a0a0b">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/bensn.css">
+<style>
+/* ════════════════════════════════════════════════════════════════════════
+   Guide-only chrome below — NOT part of the shared design system itself.
+   Everything demonstrated INSIDE the sections uses real classes, most from
+   shared/bensn.css (linked above, live), some copied from the one app that
+   currently owns them (marked "lokal in X" — candidates to hoist later).
+   ════════════════════════════════════════════════════════════════════════ */
+body { overflow-x: hidden; }
+.guide-wrap { position: relative; z-index: 1; max-width: 1040px; margin: 0 auto; padding: 2.5rem 1.5rem 6rem; }
+.guide-title { font-size: clamp(1.8rem, 4vw, 2.4rem); font-weight: 800; letter-spacing: -0.02em; margin-bottom: .6rem; }
+.guide-sub { color: var(--muted); max-width: 680px; line-height: 1.7; font-size: .92rem; margin-bottom: 2rem; }
+.guide-nav { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 3rem; position: sticky; top: 0; background: var(--bg); padding: 1rem 0; z-index: 5; border-bottom: 1px solid var(--border); }
+.guide-nav a { font-family: 'DM Mono', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); text-decoration: none; padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; transition: all .15s; }
+.guide-nav a:hover { color: var(--text); border-color: var(--border-hover); }
+.guide-section { margin-bottom: 4rem; scroll-margin-top: 5.5rem; }
+.guide-section-title { font-size: 1.3rem; font-weight: 800; margin-bottom: .35rem; letter-spacing: -0.01em; }
+.guide-section-desc { color: var(--muted); font-size: .85rem; margin-bottom: 1.5rem; max-width: 680px; line-height: 1.65; }
+.guide-source { font-family: 'DM Mono', monospace; font-size: 9px; text-transform: uppercase; letter-spacing: .08em; color: rgba(255,255,255,.25); margin-bottom: .5rem; }
+code.chip { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); background: rgba(255,255,255,.05); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; }
+
+.swatch-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px,1fr)); gap: .9rem; }
+.swatch { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.swatch-color { height: 56px; }
+.swatch-info { padding: .55rem .7rem; }
+.swatch-name { font-family: 'DM Mono', monospace; font-size: 10.5px; color: var(--text); }
+.swatch-hex { font-family: 'DM Mono', monospace; font-size: 9.5px; color: var(--muted); margin-top: 2px; }
+
+.demo-block { border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem; background: rgba(255,255,255,.015); }
+.demo-label { font-family: 'DM Mono', monospace; font-size: 9px; text-transform: uppercase; letter-spacing: .1em; color: rgba(255,255,255,.3); margin-bottom: .8rem; }
+.demo-row { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; }
+.demo-row + .demo-row { margin-top: .9rem; }
+
+.theme-editor { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px,1fr)); gap: .9rem; margin-bottom: 1rem; }
+.theme-editor label { display: flex; align-items: center; gap: .6rem; font-family: 'DM Mono', monospace; font-size: 10.5px; color: var(--muted); background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: .5rem .7rem; }
+.theme-editor input[type=color] { width: 30px; height: 30px; border: none; border-radius: 6px; background: none; cursor: pointer; padding: 0; flex-shrink: 0; }
+.theme-editor-actions { display: flex; gap: .6rem; flex-wrap: wrap; margin-top: .3rem; }
+.export-box { display: none; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1rem; font-family: 'DM Mono', monospace; font-size: 11px; line-height: 1.7; white-space: pre-wrap; margin-top: 1rem; color: var(--text); }
+
+.inconsistency-item { border: 1px solid rgba(255,180,0,.25); background: rgba(255,180,0,.04); border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: .8rem; }
+.inconsistency-title { font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: .04em; color: #ffb400; margin-bottom: 6px; }
+.inconsistency-desc { font-size: .83rem; color: var(--muted); line-height: 1.65; }
+.inconsistency-desc code { font-family: 'DM Mono', monospace; font-size: .8em; color: var(--text); }
+
+/* ── Local component styles being documented (not yet in shared/bensn.css) ── */
+/* lokal in health: quick-btn, pill, btn-add-block, stat-card */
+.gd-quick-btn { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 1.1rem 0.9rem; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; font-family: "DM Mono", monospace; }
+.gd-quick-btn:hover { border-color: var(--border-hover); background: rgba(255,255,255,0.04); }
+.gd-quick-btn .icon { font-size: 1.4rem; }
+.gd-quick-btn .label { font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.gd-pill { font-family: "DM Mono", monospace; font-size: 9px; letter-spacing: 0.05em; text-transform: uppercase; padding: 2px 8px; border-radius: 20px; border: 1px solid var(--border); color: var(--muted); }
+.gd-pill.active { border-color: rgba(74,222,128,0.4); color: var(--green); }
+.gd-pill.prn { border-color: rgba(0,166,251,0.4); color: var(--accent-blue); }
+.gd-btn-add-block { font-family: "DM Mono", monospace; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.8rem 1.2rem; border-radius: 10px; border: 1px dashed var(--border); background: none; color: var(--muted); cursor: pointer; }
+.gd-btn-add-block:hover { border-color: var(--border-hover); color: var(--text); }
+.gd-stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 0.9rem 1rem; min-width: 140px; }
+.gd-stat-label { font-family: "DM Mono", monospace; font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+.gd-stat-value { font-family: "Syne", sans-serif; font-weight: 800; font-size: 1.4rem; }
+.gd-stat-sub { font-family: "DM Mono", monospace; font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+/* lokal in tracking: btn-unit, btn-icon, btn-add, mode-btn/sheet-toggle-btn, item-card, settings-cat, history-type-badge */
+.gd-btn-unit { font-family: "DM Mono", monospace; font-size: 11px; font-weight: 500; letter-spacing: 0.04em; background: none; border: 1px solid var(--border-hover); color: var(--text); border-radius: 8px; padding: 7px 13px; cursor: pointer; }
+.gd-btn-unit:hover { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.3); }
+.gd-btn-icon { width: 30px; height: 30px; background: none; border: 1px solid var(--border); border-radius: 7px; color: var(--muted); cursor: pointer; font-size: 14px; display: inline-flex; align-items: center; justify-content: center; }
+.gd-btn-icon:hover { border-color: var(--border-hover); color: var(--text); }
+.gd-btn-add { font-family: "DM Mono", monospace; font-size: 10px; letter-spacing: 0.06em; padding: 4px 10px; border-radius: 6px; border: 1px solid rgba(74,222,128,0.3); color: var(--green); background: none; cursor: pointer; }
+.gd-btn-add:hover { background: rgba(74,222,128,.08); }
+.gd-toggle-row { display: flex; gap: .4rem; max-width: 260px; }
+.gd-toggle-btn { flex: 1; font-family: "DM Mono", monospace; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; padding: 8px; border-radius: 8px; border: 1px solid var(--border); background: none; color: var(--muted); cursor: pointer; text-align: center; }
+.gd-toggle-btn.active { border-color: var(--accent-blue); color: var(--accent-blue); background: rgba(0,166,251,.08); }
+.gd-item-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.25rem; display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+.gd-item-name { font-family: "Syne", sans-serif; font-size: 0.95rem; font-weight: 700; }
+.gd-item-meta { font-family: "DM Mono", monospace; font-size: 10px; color: var(--muted); margin-top: 3px; }
+.gd-badge { font-family: "DM Mono", monospace; font-size: 9px; padding: 1px 6px; border-radius: 3px; }
+.gd-badge.bestand { background: rgba(255,180,0,0.1); border: 1px solid rgba(255,180,0,0.25); color: #ffb400; }
+.gd-badge.zaehler { background: rgba(0,166,251,0.08); border: 1px solid rgba(0,166,251,0.2); color: var(--accent-blue); }
+.gd-badge.auffuellung { background: rgba(74,222,128,0.08); border: 1px solid rgba(74,222,128,0.2); color: var(--green); }
+.gd-badge.entnahme { background: rgba(255,0,81,0.08); border: 1px solid rgba(255,0,81,0.2); color: var(--accent-red); }
+.gd-btn-danger { font-family: "DM Mono", monospace; font-size: 11px; background: none; border: 1px solid rgba(255,0,81,0.3); color: var(--accent-red); border-radius: 8px; padding: 11px 14px; cursor: pointer; }
+
+/* lokal in health/tracking: sheet-input, input-row, note-input */
+.gd-sheet-input { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 9px 12px; color: var(--text); font-family: 'DM Mono', monospace; font-size: 13px; outline: none; }
+.gd-input-row { display: flex; align-items: center; gap: 0.5rem; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 0.5rem 0.75rem; }
+.gd-input-row input { flex: 1; background: none; border: none; color: var(--text); font-family: 'DM Mono', monospace; font-size: 1.3rem; font-weight: 500; outline: none; min-width: 0; }
+.gd-input-unit { font-family: 'DM Mono', monospace; font-size: 13px; color: var(--muted); }
+
+/* lokal in library.bensn.me: submit-btn, text-input, form-label, badge (independent primitives) */
+.gd-lib-text-input { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: .8rem 1rem; color: var(--text); font-family: 'DM Mono', monospace; font-size: 13px; outline: none; }
+.gd-lib-form-label { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: .5rem; }
+.gd-lib-submit-btn { padding: .875rem 1.75rem; border-radius: 12px; border: none; background: var(--accent-blue); color: #fff; font-family: 'Syne', sans-serif; font-size: .95rem; font-weight: 700; cursor: pointer; }
+.gd-lib-badge { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; padding: 3px 9px; border-radius: 4px; border: 1px solid var(--border); color: var(--muted); }
+.gd-lib-badge.blue { border-color: rgba(0,166,251,.3); color: var(--accent-blue); }
+.gd-lib-badge.orange { border-color: rgba(232,114,74,.3); color: var(--orange); }
+
+/* lokal in worktracker: wt-card, wt-badge, wt-stat, wt-cig, wt-shift-row, and the 2 un-unified Löschen buttons */
+.gd-wt-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; }
+.gd-wt-badge { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; padding: 4px 10px; border: 1px solid rgba(74,222,128,0.3); color: var(--green); border-radius: 4px; }
+.gd-wt-stats { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; }
+.gd-wt-stat { background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+.gd-wt-stat-val { font-family: 'DM Mono', monospace; font-size: 1.05rem; font-weight: 500; }
+.gd-wt-stat-label { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-top: 5px; }
+.gd-wt-del-a { font-family:'DM Mono',monospace; font-size:11px; letter-spacing:.06em; background:none; border:1px solid rgba(255,0,81,.3); color:var(--accent-red); border-radius:8px; padding:8px 16px; cursor:pointer; }
+.gd-wt-del-b { font-family:'DM Mono',monospace; font-size:11px; background:none; border:1px solid rgba(255,0,81,.3); color:var(--accent-red); border-radius:8px; padding:10px 14px; cursor:pointer; }
+
+.overlay-demo-trigger { display: inline-block; }
+.gd-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.75); z-index: 200; display: none; align-items: flex-end; justify-content: center; }
+.gd-overlay.visible { display: flex; }
+.gd-overlay-sheet { background: #161616; border: 1px solid rgba(255,255,255,.12); border-radius: 16px 16px 0 0; padding: 1.5rem 1.25rem 2.5rem; width: 100%; max-width: 480px; }
+
+.gd-service-swatches { display: flex; flex-wrap: wrap; gap: .6rem; }
+.gd-service-swatch { display: flex; align-items: center; gap: .5rem; font-family: 'DM Mono', monospace; font-size: 11px; border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; }
+.gd-service-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+@media (max-width: 560px) {
+  .gd-wt-stats { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .gd-item-card { flex-direction: column; align-items: flex-start; }
+}
+</style>
+</head>
+<body>
+
+<div class="grid-bg"></div>
+<div class="blobs" id="blobs"></div>
+
+<div class="guide-wrap">
+
+  <div class="eyebrow">bensn.me · Design System</div>
+  <h1 class="guide-title">Alle Design-Elemente an einem Ort</h1>
+  <p class="guide-sub">
+    Lebende Referenz über alle Frontends hinweg (tracking, health, feed, worktracker,
+    location, library, landing). Farben/Typografie/Basis-Layout kommen live aus
+    <code class="chip">shared/bensn.css</code> — Änderungen dort erscheinen sofort hier.
+    Komponenten, die noch nicht zentralisiert sind, sind als Kopie mit <code class="chip">gd-</code>-Präfix
+    dokumentiert und bei jedem Abschnitt mit ihrer Quelle markiert.
+    Für einen Theme-Wechsel: im Theme-Editor unten experimentieren, dann den exportierten
+    Block in <code class="chip">bensn-meta/shared/bensn.css</code> übernehmen und deployen —
+    das wirkt sich sofort auf alle Apps aus, die <code class="chip">/shared/bensn.css</code> einbinden.
+  </p>
+
+  <nav class="guide-nav">
+    <a href="#farben">Farben</a>
+    <a href="#theme-editor">Theme-Editor</a>
+    <a href="#typografie">Typografie</a>
+    <a href="#buttons">Buttons</a>
+    <a href="#cards">Cards</a>
+    <a href="#badges">Badges &amp; Tags</a>
+    <a href="#formulare">Formulare</a>
+    <a href="#navigation">Navigation &amp; Tabs</a>
+    <a href="#sheets">Sheets &amp; Overlays</a>
+    <a href="#status">Status</a>
+    <a href="#hintergrund">Hintergrund &amp; Bewegung</a>
+    <a href="#inkonsistenzen">Bekannte Inkonsistenzen</a>
+  </nav>
+
+  <!-- ═══ FARBEN ═══ -->
+  <section class="guide-section" id="farben">
+    <h2 class="guide-section-title">Farben</h2>
+    <div class="guide-source">shared/bensn.css — :root</div>
+    <p class="guide-section-desc">Jede App verwendet ausschließlich diese Variablen, nie Hex-Werte direkt
+      (Ausnahme: die Service-Akzentfarben der Landing-Page-Cards, siehe unten — das sind bewusst
+      keine Theme-Variablen, sondern Branding pro Service).</p>
+    <div class="swatch-grid" id="colorSwatches"></div>
+
+    <div class="guide-source" style="margin-top:2rem">landing/index.html — pro Service definiert, nicht in shared/bensn.css</div>
+    <div class="gd-service-swatches">
+      <div class="gd-service-swatch"><div class="gd-service-dot" style="background:#e5b181"></div>feed · #e5b181</div>
+      <div class="gd-service-swatch"><div class="gd-service-dot" style="background:#3BC14A"></div>worktracker · #3BC14A</div>
+      <div class="gd-service-swatch"><div class="gd-service-dot" style="background:#ffb400"></div>health · #ffb400</div>
+      <div class="gd-service-swatch"><div class="gd-service-dot" style="background:#f96f5d"></div>location · #f96f5d</div>
+      <div class="gd-service-swatch"><div class="gd-service-dot" style="background:#a3e635"></div>tracking · #a3e635</div>
+      <div class="gd-service-swatch"><div class="gd-service-dot" style="background:#2dd4bf"></div>library · #2dd4bf</div>
+      <div class="gd-service-swatch"><div class="gd-service-dot" style="background:#aa5cc3"></div>stream · #aa5cc3</div>
+      <div class="gd-service-swatch"><div class="gd-service-dot" style="background:#00a6ed"></div>grafana · #00a6ed</div>
+      <div class="gd-service-swatch"><div class="gd-service-dot" style="background:#ff0051"></div>pdf · #ff0051</div>
+    </div>
+  </section>
+
+  <!-- ═══ THEME EDITOR ═══ -->
+  <section class="guide-section" id="theme-editor">
+    <h2 class="guide-section-title">Live Theme-Editor</h2>
+    <p class="guide-section-desc">Ändert live die ganze Seite (nur diese Session, nichts wird gespeichert).
+      <code class="chip">--border</code>/<code class="chip">--border-hover</code> sind transparente
+      rgba-Werte und daher hier nicht editierbar — die bleiben als reine Referenz-Swatches oben.</p>
+    <div class="theme-editor" id="themeEditor"></div>
+    <div class="theme-editor-actions">
+      <button class="btn-pill green" onclick="exportTheme()">Als CSS exportieren</button>
+      <button class="btn-pill" onclick="resetTheme()">Zurücksetzen</button>
+    </div>
+    <pre class="export-box" id="exportBox"></pre>
+  </section>
+
+  <!-- ═══ TYPOGRAFIE ═══ -->
+  <section class="guide-section" id="typografie">
+    <h2 class="guide-section-title">Typografie</h2>
+    <div class="guide-source">shared/bensn.css — 2 Font-Familien im ganzen System</div>
+    <p class="guide-section-desc">
+      <code class="chip">Syne</code> (700/800) für Überschriften und Namen, <code class="chip">DM Mono</code>
+      für praktisch alles andere — Labels, Meta-Infos, Buttons, Zahlen. Kein drittes Font eingesetzt.</p>
+    <div class="demo-block">
+      <div class="demo-label">h1 · Syne 800</div>
+      <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:clamp(2rem,5vw,3rem);letter-spacing:-0.02em;margin-bottom:1rem">bensn<span style="color:var(--muted);font-weight:400">.me</span></div>
+      <div class="demo-label">card-name · Syne 700, 1.2rem</div>
+      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:1.2rem;margin-bottom:1rem">Journal Feed</div>
+      <div class="demo-label">eyebrow / section-label · DM Mono 400, 10–11px, uppercase, tracked</div>
+      <div class="eyebrow" style="margin-bottom:0">Hetzner CX23 · Wien</div>
+      <div class="section-label" style="margin:.5rem 0 1rem">Kategorien &amp; Items</div>
+      <div class="demo-label">subtitle / card-desc · DM Mono/Syne, muted</div>
+      <div class="subtitle" style="margin-bottom:0">Persönlicher Obsidian-Journal-Feed — Apple Journal Ersatz.</div>
+    </div>
+  </section>
+
+  <!-- ═══ BUTTONS ═══ -->
+  <section class="guide-section" id="buttons">
+    <h2 class="guide-section-title">Buttons</h2>
+
+    <div class="guide-source">shared/bensn.css — .btn-pill / .btn-save / .btn-cancel (zentralisiert 2026-09-16)</div>
+    <div class="demo-block">
+      <div class="demo-row">
+        <button class="btn-pill">Bearbeiten</button>
+        <button class="btn-pill green">+ Pause</button>
+        <button class="btn-pill red">Löschen</button>
+      </div>
+      <div class="demo-row">
+        <button class="btn-save">Speichern</button>
+        <button class="btn-cancel">Abbrechen</button>
+      </div>
+    </div>
+
+    <div class="guide-source">lokal in health/index.html — .quick-btn, .btn-add-block</div>
+    <div class="demo-block">
+      <div class="demo-row">
+        <button class="gd-quick-btn"><span class="icon">❤️</span><span class="label">Blutdruck</span></button>
+        <button class="gd-quick-btn"><span class="icon">⚖️</span><span class="label">Gewicht</span></button>
+      </div>
+      <div class="demo-row">
+        <button class="gd-btn-add-block">+ Neues Medikament</button>
+      </div>
+    </div>
+
+    <div class="guide-source">lokal in tracking/index.html — .btn-unit, .btn-icon, .btn-add, .mode-btn/.sheet-toggle-btn, .btn-danger</div>
+    <div class="demo-block">
+      <div class="demo-row">
+        <button class="gd-btn-unit">+10 Dag</button>
+        <button class="gd-btn-icon">✎</button>
+        <button class="gd-btn-add">+ Kategorie</button>
+        <button class="gd-btn-danger">Löschen (Sheet-Variante)</button>
+      </div>
+      <div class="demo-row">
+        <div class="gd-toggle-row">
+          <button class="gd-toggle-btn active">Zähler</button>
+          <button class="gd-toggle-btn">Vorrat</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="guide-source">lokal in worktracker/index.html — 2 unvereinheitlichte Löschen-Varianten (siehe Inkonsistenzen)</div>
+    <div class="demo-block">
+      <div class="demo-row">
+        <button class="gd-wt-del-a">Löschen (Schicht-Formular)</button>
+        <button class="gd-wt-del-b">Löschen (Pause)</button>
+      </div>
+    </div>
+
+    <div class="guide-source">lokal in library/public/index.html — eigenes Primär-Button-System</div>
+    <div class="demo-block">
+      <div class="demo-row">
+        <button class="gd-lib-submit-btn">Wunsch eintragen</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ CARDS ═══ -->
+  <section class="guide-section" id="cards">
+    <h2 class="guide-section-title">Cards</h2>
+
+    <div class="guide-source">shared/bensn.css — .card (Landing-Service-Karte)</div>
+    <div class="demo-block">
+      <a class="card" href="#" style="max-width:280px;text-decoration:none;display:block" onclick="return false">
+        <div class="card-icon" style="background:rgba(163,230,53,.1);border:1px solid rgba(163,230,53,.2)">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3 15V9M8 15V5M13 15v-7M17 15v-3" stroke="#a3e635" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </div>
+        <div class="card-domain" style="color:#a3e635">tracking.bensn.me</div>
+        <div class="card-name">Tracking</div>
+        <div class="card-desc">Habits, Konsum, Zähler — konfigurierbarer Tracker.</div>
+        <div class="tag">Flask · Port 5001</div>
+      </a>
+    </div>
+
+    <div class="guide-source">lokal in tracking/index.html — .item-card</div>
+    <div class="demo-block">
+      <div class="gd-item-card">
+        <div>
+          <div class="gd-item-name">Zigarette</div>
+          <div class="gd-item-meta">Zähler · aufzählend · Stk.</div>
+        </div>
+        <button class="gd-btn-unit">+1</button>
+      </div>
+    </div>
+
+    <div class="guide-source">lokal in health/index.html — .stat-card (Dashboard)</div>
+    <div class="demo-block">
+      <div class="demo-row">
+        <div class="gd-stat-card">
+          <div class="gd-stat-label">Herzfrequenz (Ø 7 Tage)</div>
+          <div class="gd-stat-value">54–65 bpm</div>
+          <div class="gd-stat-sub">Ruhepuls-Spanne</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="guide-source">lokal in worktracker/index.html — .wt-card, .wt-stats, .wt-badge</div>
+    <div class="demo-block">
+      <div class="gd-wt-card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.25rem">
+          <div>
+            <div style="font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;letter-spacing:-0.02em">Puls4</div>
+            <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-top:4px">Frühschicht</div>
+          </div>
+          <span class="gd-wt-badge">Aktiv</span>
+        </div>
+        <div class="gd-wt-stats">
+          <div class="gd-wt-stat"><div class="gd-wt-stat-val">6.5h</div><div class="gd-wt-stat-label">Netto</div></div>
+          <div class="gd-wt-stat"><div class="gd-wt-stat-val">2</div><div class="gd-wt-stat-label">Pausen</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ BADGES & TAGS ═══ -->
+  <section class="guide-section" id="badges">
+    <h2 class="guide-section-title">Badges &amp; Tags</h2>
+    <p class="guide-section-desc">Vier verschiedene "kleine farbige Beschriftung"-Komponenten im System —
+      siehe Inkonsistenzen unten, ob das konvergiert werden sollte.</p>
+
+    <div class="guide-source">shared/bensn.css — .tag (Landing-Card-Footer)</div>
+    <div class="demo-block"><div class="demo-row"><span class="tag">Flask · Port 5001</span></div></div>
+
+    <div class="guide-source">lokal in health/index.html — .pill</div>
+    <div class="demo-block">
+      <div class="demo-row">
+        <span class="gd-pill active">Aktiv</span>
+        <span class="gd-pill prn">PRN</span>
+      </div>
+    </div>
+
+    <div class="guide-source">lokal in tracking/index.html — .history-type-badge</div>
+    <div class="demo-block">
+      <div class="demo-row">
+        <span class="gd-badge bestand">Bestand</span>
+        <span class="gd-badge zaehler">+1 Stk.</span>
+        <span class="gd-badge auffuellung">+10g</span>
+        <span class="gd-badge entnahme">−5g</span>
+      </div>
+    </div>
+
+    <div class="guide-source">lokal in worktracker/index.html — .wt-badge</div>
+    <div class="demo-block"><div class="demo-row"><span class="gd-wt-badge">Aktiv</span></div></div>
+
+    <div class="guide-source">lokal in library/public/index.html — .badge (eigenes System, unabhängig)</div>
+    <div class="demo-block">
+      <div class="demo-row">
+        <span class="gd-lib-badge">Bestellt</span>
+        <span class="gd-lib-badge blue">Verfügbar</span>
+        <span class="gd-lib-badge orange">Wunsch</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ FORMULARE ═══ -->
+  <section class="guide-section" id="formulare">
+    <h2 class="guide-section-title">Formulare</h2>
+
+    <div class="guide-source">lokal in health/tracking — .sheet-input, .input-row (Mengen-Eingabe mit Einheit)</div>
+    <div class="demo-block">
+      <div style="max-width:340px">
+        <div class="section-label" style="margin-top:0">Notiz</div>
+        <input class="gd-sheet-input" type="text" placeholder="z.B. neue Packung…" style="margin-bottom:.9rem">
+        <div class="section-label">Menge</div>
+        <div class="gd-input-row"><input type="number" placeholder="0"><span class="gd-input-unit">g</span></div>
+      </div>
+    </div>
+
+    <div class="guide-source">lokal in library/public/index.html — .text-input, .form-label (eigenes System, unabhängig)</div>
+    <div class="demo-block">
+      <div style="max-width:340px">
+        <label class="gd-lib-form-label">Titel</label>
+        <input class="gd-lib-text-input" type="text" placeholder="Wunsch eintragen…">
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ NAVIGATION ═══ -->
+  <section class="guide-section" id="navigation">
+    <h2 class="guide-section-title">Navigation &amp; Tabs</h2>
+    <div class="guide-source">shared/bensn.css — .app-nav / .nav-crumb / .tabs / .tab</div>
+    <div class="demo-block">
+      <nav class="app-nav" style="margin-bottom:1rem">
+        <a href="#" class="nav-crumb" onclick="return false"><span>bensn</span>.me</a>
+        <span class="nav-sep">/</span>
+        <span class="nav-current">tracking</span>
+        <div class="nav-right"><div class="dot"></div><span>online</span></div>
+      </nav>
+      <div class="tabs">
+        <button class="tab active">Heute</button>
+        <button class="tab">Verlauf</button>
+        <button class="tab">Einstellungen</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ SHEETS & OVERLAYS ═══ -->
+  <section class="guide-section" id="sheets">
+    <h2 class="guide-section-title">Sheets &amp; Overlays</h2>
+    <div class="guide-source">shared-Muster — Bottom-Sheet über allen Apps identisch aufgebaut (kein Modal-Dialog)</div>
+    <div class="demo-block">
+      <div class="demo-row">
+        <button class="btn-pill green" onclick="document.getElementById('gdOverlay').classList.add('visible')">Sheet öffnen</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ STATUS ═══ -->
+  <section class="guide-section" id="status">
+    <h2 class="guide-section-title">Status-Indikatoren</h2>
+    <div class="guide-source">shared/bensn.css — .dot (pulsierend, online/aktiv)</div>
+    <div class="demo-block">
+      <div class="demo-row">
+        <div class="nav-right" style="font-size:11px"><div class="dot"></div><span>alle services aktiv</span></div>
+        <div class="nav-right" style="font-size:11px"><div class="dot" style="background:var(--accent-red);animation:none"></div><span>offline</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ HINTERGRUND & BEWEGUNG ═══ -->
+  <section class="guide-section" id="hintergrund">
+    <h2 class="guide-section-title">Hintergrund &amp; Bewegung</h2>
+    <div class="guide-source">shared/bensn.css + bensn.js — .grid-bg, .blobs (schwebende, animierte Farbflächen), .intro-fade</div>
+    <p class="guide-section-desc">Auf dieser Seite live sichtbar: das feine Grid im Hintergrund und die
+      zwei langsam driftenden Farb-Blobs (blau/rot, aus <code class="chip">bensn.js</code>) — jede App
+      bindet dasselbe <code class="chip">&lt;div class="blobs" id="blobs"&gt;&lt;/div&gt;</code> plus
+      Script ein. <code class="chip">.intro-fade</code> ist die Standard-Eingangsanimation für
+      Karten/Sections (staffelbar über <code class="chip">animation-delay</code>).</p>
+  </section>
+
+  <!-- ═══ INKONSISTENZEN ═══ -->
+  <section class="guide-section" id="inkonsistenzen">
+    <h2 class="guide-section-title">Bekannte Inkonsistenzen</h2>
+    <p class="guide-section-desc">Beim Durchgehen aller Services gefunden, noch nicht angeglichen —
+      bewusst nicht selbstständig vereinheitlicht, da das echte Design-Entscheidungen sind.</p>
+
+    <div class="inconsistency-item">
+      <div class="inconsistency-title">Zwei "Destruktiv-Button-in-Sheet"-Größen</div>
+      <div class="inconsistency-desc">health.bensn.me nutzt für Löschen-Aktionen innerhalb von Sheets die
+        kleine <code>.btn-pill.red</code> (10px, 6×12px Padding). tracking.bensn.me hat dafür eine eigene,
+        größere <code>.btn-danger</code> (11px, 11×14px Padding, 8px Radius). Gleiche Aufgabe, zwei Größen.</div>
+    </div>
+
+    <div class="inconsistency-item">
+      <div class="inconsistency-title">worktracker: 2 Löschen-Buttons, keiner einheitlich</div>
+      <div class="inconsistency-desc">Die "Löschen"-Buttons im Schicht-Bearbeiten-Formular
+        (<code>saveEdit</code>-Zeile: 8×16px Padding) und bei Pausen (<code>deleteBreak</code>: 10×14px
+        Padding) unterscheiden sich sowohl voneinander als auch von <code>.btn-pill.red</code> — bisher
+        nicht angefasst, da eine Vereinheitlichung hier eine echte Entscheidung braucht (welche Größe
+        gewinnt).</div>
+    </div>
+
+    <div class="inconsistency-item">
+      <div class="inconsistency-title">library.bensn.me läuft mit eigenem Komponenten-Set</div>
+      <div class="inconsistency-desc">Primär-Button (<code>.submit-btn</code>: gefüllt blau, Syne, 12px
+        Radius) statt <code>.btn-save</code> (gefüllt grün, DM Mono, 8px Radius); Formularfelder
+        (<code>.text-input</code>/<code>.form-label</code>) statt <code>.sheet-input</code>/<code>.sheet-label</code>;
+        eigenes <code>.badge</code>-System statt <code>.pill</code>/<code>.history-type-badge</code>. Nutzt
+        zwar dieselbe <code>/shared/bensn.css</code> für Farben/Fonts/Cards, hat aber nie an den seither
+        entstandenen App-Konventionen teilgenommen.</div>
+    </div>
+
+    <div class="inconsistency-item">
+      <div class="inconsistency-title">Border-Radius-Skala nicht konsistent</div>
+      <div class="inconsistency-desc">Im System kursieren mindestens vier Werte für "abgerundete Ecke":
+        8px (<code>.wt-stat</code>, <code>.btn-save</code>), 10px (<code>.quick-btn</code>, <code>.stat-card</code>),
+        12px (<code>.item-card</code>, <code>.text-input</code>, <code>.settings-cat</code>), 16px
+        (<code>.card</code>, <code>.wt-card</code>) — kein einheitliches Spacing-/Radius-Raster.</div>
+    </div>
+
+    <div class="inconsistency-item">
+      <div class="inconsistency-title">"Kleines Mono-Label" in 3 Schriftgrößen</div>
+      <div class="inconsistency-desc"><code>9px</code> (<code>.wt-stat-label</code>, <code>.stat-label</code>,
+        <code>.pill</code>), <code>10px</code> (<code>.section-label</code>, <code>.tag</code>, die meisten
+        Labels), <code>11px</code> (<code>.sheet-input</code>-Text, <code>.wt-table</code>) — funktional
+        dieselbe Rolle (kleine, gedämpfte Meta-Info), drei Größen im Umlauf.</div>
+    </div>
+  </section>
+
+</div>
+
+<!-- Overlay demo -->
+<div class="gd-overlay" id="gdOverlay" onclick="if(event.target===this) this.classList.remove('visible')">
+  <div class="gd-overlay-sheet">
+    <div class="sheet-label">Eintrag</div>
+    <div class="sheet-title" style="font-family:'Syne',sans-serif;font-size:1.3rem;font-weight:800;margin-bottom:1.25rem;letter-spacing:-0.02em">Beispiel-Sheet</div>
+    <div class="gd-input-row" style="margin-bottom:1rem"><input type="number" placeholder="0"><span class="gd-input-unit">g</span></div>
+    <div class="demo-row">
+      <button class="btn-save" style="flex:1" onclick="document.getElementById('gdOverlay').classList.remove('visible')">Speichern</button>
+      <button class="btn-cancel" onclick="document.getElementById('gdOverlay').classList.remove('visible')">Abbrechen</button>
+    </div>
+  </div>
+</div>
+
+<script src="shared/bensn.js"></script>
+<script>
+const CORE_VARS = ['--bg','--surface','--border','--border-hover','--text','--muted','--accent-blue','--accent-red','--green','--orange'];
+const EDITABLE_VARS = [
+  {name:'--bg', label:'Hintergrund'},
+  {name:'--surface', label:'Fläche / Karten'},
+  {name:'--text', label:'Text'},
+  {name:'--muted', label:'Gedämpft'},
+  {name:'--accent-blue', label:'Akzent Blau'},
+  {name:'--accent-red', label:'Akzent Rot'},
+  {name:'--green', label:'Grün'},
+  {name:'--orange', label:'Orange'},
+];
+
+function cssVar(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+
+function buildSwatches(){
+  document.getElementById('colorSwatches').innerHTML = CORE_VARS.map(v=>{
+    const val = cssVar(v);
+    return `<div class="swatch"><div class="swatch-color" style="background:${val}"></div><div class="swatch-info"><div class="swatch-name">${v}</div><div class="swatch-hex">${val}</div></div></div>`;
+  }).join('');
+}
+
+function buildThemeEditor(){
+  document.getElementById('themeEditor').innerHTML = EDITABLE_VARS.map(v=>{
+    const val = cssVar(v.name);
+    return `<label>${v.label}<input type="color" value="${val}" oninput="setVar('${v.name}', this.value)"><code class="chip">${v.name}</code></label>`;
+  }).join('');
+}
+
+function setVar(name, val){
+  document.documentElement.style.setProperty(name, val);
+  buildSwatches();
+}
+
+function exportTheme(){
+  const box = document.getElementById('exportBox');
+  const lines = CORE_VARS.map(v => `  ${v}: ${cssVar(v)};`);
+  box.textContent = ':root {\n' + lines.join('\n') + '\n}';
+  box.style.display = 'block';
+}
+
+function resetTheme(){
+  document.documentElement.removeAttribute('style');
+  buildSwatches();
+  buildThemeEditor();
+  document.getElementById('exportBox').style.display = 'none';
+}
+
+buildSwatches();
+buildThemeEditor();
+</script>
+</body>
+</html>

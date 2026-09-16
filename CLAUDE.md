@@ -9,7 +9,7 @@ Ablageort: `~/Documents/Coding/bensn-hub/bensn-meta/CLAUDE.md`
 
 - **Name:** bensn-meta
 - **Typ:** Infrastruktur-Meta-Repo (kein Single-App-Projekt)
-- **Version:** v1.0.0
+- **Version:** v1.0.1
 - **Status:** active
 - **Stack:** Flask + gunicorn + PostgreSQL 16 (Docker) + nginx + systemd
 
@@ -41,6 +41,9 @@ Dieses Repo enthält: Auth-Service-Code, API-Versionen, nginx-Configs und Server
 │   ├── pdf.bensn.me
 │   ├── tracking.bensn.me
 │   └── worktracker.bensn.me
+├── shared/                    ← geteilte Design-System-Assets (bensn.css, bensn.js), seit
+│                                 2026-09-16 erstmals versioniert — vorher existierte nur eine
+│                                 Live-Kopie auf dem Server ohne Git-Historie (siehe unten)
 ├── schema.sql                ← aktuelles Schema, per `pg_dump --schema-only` gezogen (siehe unten)
 ├── snapshots/
 │   └── bensn-2026-04-27/    ← Vollständiger Server-Snapshot (Archiv-Referenz, NICHT aktueller Stand —
@@ -163,6 +166,10 @@ ssh bensn "nginx -t && systemctl reload nginx"
 # systemd-Service nach .service Änderung
 scp auth/bensn-auth-v2/bensn-auth.service bensn:/etc/systemd/system/bensn-auth.service
 ssh bensn "systemctl daemon-reload && systemctl restart bensn-auth"
+
+# Shared Design-System-Assets (wirkt sich auf ALLE bensn.me-Frontends aus, kein Restart nötig)
+scp ~/Documents/Coding/bensn-hub/bensn-meta/shared/bensn.css bensn:/var/www/shared/bensn.css
+scp ~/Documents/Coding/bensn-hub/bensn-meta/shared/bensn.js bensn:/var/www/shared/bensn.js
 ```
 
 ---
@@ -252,6 +259,13 @@ Views: `current_shift`, `daily_summary`
 - Snapshots bei größeren Infra-Änderungen in `snapshots/[name]-[YYYY-MM-DD]/` ablegen
 - Soft-Delete: Schichten und Pausen werden mit `deleted = true` markiert, nicht physical gelöscht
 - `original_data` JSONB-Feld: speichert Snapshot vor Korrekturen
+- **Design-System-Assets (`shared/bensn.css`/`bensn.js`):** einzige Quelle, jede App linkt
+  `/shared/bensn.css` statt Styles zu duplizieren. Komponenten, die in ≥2 Apps identisch
+  vorkommen, gehören HIER rein, nicht als Kopie in jeder App (siehe `.btn-pill`/`.btn-save`/
+  `.btn-cancel`, seit 2026-09-16 zentralisiert — vorher 3x fast-identisch dupliziert).
+  Änderungen hier wirken sich auf ALLE bensn.me-Frontends gleichzeitig aus — das ist
+  beabsichtigt (Ziel: ein Theme-Wechsel an einer Stelle), aber deshalb vor dem Deploy
+  gegen mindestens 2 Apps visuell testen
 
 ---
 
@@ -266,6 +280,7 @@ Views: `current_shift`, `daily_summary`
 | — | `health_logs`, `obsidian_entries`, `feed_items` gedroppt, `/api/health/log`-Endpoint entfernt (hing an `health_logs`) | ✅ deployed (2026-09-16) |
 | — | `PATCH /api/tracking/entry/<id>` um `timestamp`-Feld erweitert (Zeitpunkt-Korrektur für tracking.bensn.me v2.0.0, `date` wird daraus neu berechnet) | ✅ deployed (2026-09-16) |
 | — | Basic Impressum für die bensn.me-Seiten (gesetzlich vorgeschrieben, site-weit statt pro Projekt) | ⬜ offen (später, auf Wunsch des Users) |
+| v1.0.1 | `shared/bensn.css`/`bensn.js` erstmals versioniert (`bensn-meta/shared/`, vorher nur Live-Kopie auf dem Server ohne Git-Historie), `.btn-pill`/`.btn-save`/`.btn-cancel` aus health/feed/tracking (und teilweise worktracker-Inline-Styles) hierher zentralisiert statt dupliziert, neue `design-system.html` als lebende Style-Guide-Referenz mit Live-Theme-Editor | ✅ deployed (2026-09-16) |
 
 ---
 
