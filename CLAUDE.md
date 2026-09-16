@@ -226,7 +226,7 @@ Views: `current_shift`, `daily_summary`
 | GET | /api/feed | Kombinierter Feed (shifts, mood, sleep, obsidian) — eigenständig von feed-api's `/api/feed/combined` |
 | GET | /api/stats/weekly | Wochenübersicht |
 | GET | /api/stats/shift-summary | Zusammenfassung nach Schichttyp |
-| GET/POST/PATCH/DELETE | /api/tracking/entries, /entry, /entry/`<id>` | Tracking-Einträge CRUD |
+| GET/POST/PATCH/DELETE | /api/tracking/entries, /entry, /entry/`<id>` | Tracking-Einträge CRUD (PATCH: `amount`, `note`, `timestamp` — bei `timestamp` wird `date` serverseitig aus `Europe/Vienna` neu berechnet) |
 | GET | /api/tracking/bestand/`<item_id>` | Aktueller Bestand + Verbrauch seit letztem Eintrag |
 | GET | /api/tracking/summary | Tages-Zähler-Zusammenfassung |
 | GET/POST/PATCH/DELETE | /api/tracking/categories, /items | Kategorien/Items-Konfiguration |
@@ -264,6 +264,7 @@ Views: `current_shift`, `daily_summary`
 | — | Neuer Service `health-api` (Port 5008 — 5004-5007 waren schon durch andere Projekte belegt) für Medikamente/Blutdruck/Mahlzeiten | ✅ deployed (2026-09-16, Code im `health`-Repo) |
 | — | `journal_entries`-Schema + volle Obsidian-Ablösung im Feed (siehe `feed`-Repo v2.1.0–v2.3.0) | ✅ deployed (2026-09-16) |
 | — | `health_logs`, `obsidian_entries`, `feed_items` gedroppt, `/api/health/log`-Endpoint entfernt (hing an `health_logs`) | ✅ deployed (2026-09-16) |
+| — | `PATCH /api/tracking/entry/<id>` um `timestamp`-Feld erweitert (Zeitpunkt-Korrektur für tracking.bensn.me v2.0.0, `date` wird daraus neu berechnet) | ✅ deployed (2026-09-16) |
 
 ---
 

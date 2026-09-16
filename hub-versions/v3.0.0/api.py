@@ -1127,7 +1127,9 @@ def tracking_entry_get(entry_id):
 def tracking_entry_update(entry_id):
     """
     Eintrag korrigieren.
-    Body: { amount, note }  (nur diese zwei Felder erlaubt)
+    Body: { amount, note, timestamp }  (nur diese drei Felder erlaubt)
+    `timestamp` ist ein ISO-8601-String; `date` (Vienna-lokaler Kalendertag,
+    fuer Tages-Gruppierung/-Summen) wird daraus serverseitig neu berechnet.
     """
     d = request.get_json(force=True)
 
@@ -1143,6 +1145,10 @@ def tracking_entry_update(entry_id):
         set_clauses.append("amount = %s"); values.append(d["amount"])
     if "note" in d:
         set_clauses.append("note = %s");   values.append(d["note"])
+    if "timestamp" in d:
+        set_clauses.append("timestamp = %s"); values.append(d["timestamp"])
+        set_clauses.append("date = (%s::timestamptz AT TIME ZONE 'Europe/Vienna')::date")
+        values.append(d["timestamp"])
     if not set_clauses:
         abort(400, "Keine Felder zum Aktualisieren")
 
