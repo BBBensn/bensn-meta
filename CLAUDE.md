@@ -265,6 +265,7 @@ Views: `current_shift`, `daily_summary`
 | — | `journal_entries`-Schema + volle Obsidian-Ablösung im Feed (siehe `feed`-Repo v2.1.0–v2.3.0) | ✅ deployed (2026-09-16) |
 | — | `health_logs`, `obsidian_entries`, `feed_items` gedroppt, `/api/health/log`-Endpoint entfernt (hing an `health_logs`) | ✅ deployed (2026-09-16) |
 | — | `PATCH /api/tracking/entry/<id>` um `timestamp`-Feld erweitert (Zeitpunkt-Korrektur für tracking.bensn.me v2.0.0, `date` wird daraus neu berechnet) | ✅ deployed (2026-09-16) |
+| — | Basic Impressum für die bensn.me-Seiten (gesetzlich vorgeschrieben, site-weit statt pro Projekt) | ⬜ offen (später, auf Wunsch des Users) |
 
 ---
 
