@@ -9,7 +9,7 @@ Ablageort: `~/Documents/Coding/bensn-hub/bensn-meta/CLAUDE.md`
 
 - **Name:** bensn-meta
 - **Typ:** Infrastruktur-Meta-Repo (kein Single-App-Projekt)
-- **Version:** v1.0.2
+- **Version:** v1.0.3
 - **Status:** active
 - **Stack:** Flask + gunicorn + PostgreSQL 16 (Docker) + nginx + systemd
 
@@ -120,9 +120,16 @@ Nächster tatsächlich freier Port: **5009**.
 | pdf.bensn.me | Port 8081 (Stirling-PDF) | Stirling-eigenes Login |
 
 *(Weitere Domains laufen auf demselben Server für unabhängige Nebenprojekte — z.B.
-`library.bensn.me`, `market.bensn.me`, `stream.bensn.me`, `crossword.bensn.me`,
-`games.bensn.at` — die nicht Teil dieses Repos/Umbaus sind, aber teils dieselbe
-Postgres-Instanz nutzen, siehe `library_items`/`wishlist_items` unten.)*
+`market.bensn.me`, `stream.bensn.me` (reiner nginx-Proxy zu einem externen Jellyfin, kein
+eigener lokaler Code), `crossword.bensn.me`, `games.bensn.at` — die nicht Teil dieses
+Repos/Umbaus sind, aber teils dieselbe Postgres-Instanz nutzen, siehe
+`library_items`/`wishlist_items` unten.*
+
+**`library.bensn.me` hat sehr wohl einen eigenen lokalen Repo** (`~/Documents/Coding/bensn-hub/library/`,
+GitHub `bensn-library-dashboard`) — lag bis 2026-09-17 versteckt unter `stream/Library Dashboard/`
+und wurde deshalb bei jeder bisherigen Suche übersehen. Bewusst weiterhin nicht Teil des
+Design-Umbaus (eigener Punkt, siehe `design-system.html`), aber strukturell jetzt an der
+richtigen Stelle.)*
 
 ---
 
@@ -282,6 +289,7 @@ Views: `current_shift`, `daily_summary`
 | — | Basic Impressum für die bensn.me-Seiten (gesetzlich vorgeschrieben, site-weit statt pro Projekt) | ⬜ offen (später, auf Wunsch des Users) |
 | v1.0.1 | `shared/bensn.css`/`bensn.js` erstmals versioniert (`bensn-meta/shared/`, vorher nur Live-Kopie auf dem Server ohne Git-Historie), `.btn-pill`/`.btn-save`/`.btn-cancel` aus health/feed/tracking (und teilweise worktracker-Inline-Styles) hierher zentralisiert statt dupliziert, neue `design-system.html` als lebende Style-Guide-Referenz mit Live-Theme-Editor | ✅ deployed (2026-09-16) |
 | v1.0.2 | Erste Inkonsistenzen aus `design-system.html` aufgeräumt: `.btn-danger` (tracking) entfernt zugunsten von `.btn-pill.red`; Border-Radius der "Container/Tile"-Familie (`.wt-stat`, `.wt-cig`, health.bensn.mes `.stat-card`) von 8/10px auf die schon vorherrschenden 12px angeglichen; die dort genannten 9px-Labels (`.wt-stat-label`, `.wt-cig-label`, `.wt-table th`) auf 10px angeglichen. Bewusst NICHT angefasst: Button-/Input-Radius (andere Komponenten-Familie) und die deutlich breitere 9px-Verwendung in worktrackers Formular-Labels/feed/location — siehe `design-system.html` für den vollen Umfang | ✅ deployed (2026-09-16) |
+| v1.0.3 | Hub-weites Strukturaufräumen: `stream/Library Dashboard/` (versteckt, nie gefunden) nach `library/` verschoben — ist die echte `bensn-library-dashboard`/library.bensn.me-Codebase; leerer `stream/`-Ordner entfernt; stale `nginx-worktracker.conf` (Pre-Certbot-Entwurf, längst durch `nginx/worktracker.bensn.me` ersetzt) entfernt; worktracker/landing-Icons korrigiert (lokale Repos enthielten andere Dateien als tatsächlich deployed — jetzt live-Stand gezogen); redundanten Top-Level-`Icons/`-Ordner entfernt (alle Inhalte waren längst in die jeweiligen App-Repos migriert) | ✅ deployed (2026-09-17) |
 
 ---
 
