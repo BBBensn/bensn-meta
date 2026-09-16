@@ -608,38 +608,6 @@ def log_mood():
     return jsonify({"status": "ok", "mood": serialize(row)}), 201
 
 
-@app.route("/api/health/log", methods=["POST"])
-@require_api_key
-def log_health():
-    """
-    Gesundheitsdaten eintragen (Schritte, Gewicht, Medikamente).
-    Body: {
-        steps: 8420,
-        weight_kg: 78.5,
-        medications: [{"name": "Sertralin", "dose_mg": 50, "time": "08:00"}],
-        notes: "..."
-    }
-    """
-    d = request.get_json(force=True)
-
-    row = db_insert("""
-        INSERT INTO health_logs (timestamp, date, steps, weight_kg, medications, notes, source)
-        VALUES (%s, %s, %s, %s, %s, %s, %s)
-        RETURNING *
-    """, (
-        d.get("timestamp") or now_iso(),
-        d.get("date") or datetime.now().date().isoformat(),
-        d.get("steps"),
-        d.get("weight_kg"),
-        json.dumps(d.get("medications", [])),
-        d.get("notes"),
-        d.get("source", "shortcut"),
-        d.get("cafe_puls", False)
-    ))
-
-    return jsonify({"status": "ok", "health": serialize(row)}), 201
-
-
 # ═══════════════════════════════════════════════════════════════════════════════
 # LOCATION
 # ═══════════════════════════════════════════════════════════════════════════════

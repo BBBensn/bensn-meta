@@ -178,12 +178,20 @@ ssh bensn "systemctl daemon-reload && systemctl restart bensn-auth"
   Stand 2026-09-16 — verlässlicher als das ältere `snapshots/.../schema.sql`)
 
 **Aktiv genutzte Tabellen:** `shifts`, `breaks`, `sleep_logs`, `location_logs`, `location_stays`,
-`tracking_categories`, `tracking_items`, `tracking_entries`, `mood_logs` (geschrieben, aber
-nicht das, was der Feed als "Mood" anzeigt — das kommt noch aus Obsidian-Notes, siehe unten),
-`shares` (Feed-Sharing-Tokens)
+`tracking_categories`, `tracking_items`, `tracking_entries`, `shares` (Feed-Sharing-Tokens),
+`journal_entries` (alle 9 Journal-Typen, siehe `feed`-Repo — seit 2026-09-16 die einzige
+Quelle für den Feed, Obsidian-Vault-Sync komplett abgeschaltet), `health_medications`,
+`health_medication_logs`, `health_medication_effect_notes`, `health_meals`, `health_bp_logs`,
+`health_weight_logs` (siehe `health`-Repo)
 
-**Tot/write-only (Kandidaten für Aufräumen, siehe Roadmap):** `health_logs` (nie gelesen),
-`obsidian_entries` (nie befüllt), `feed_items` (nirgends referenziert)
+**Legacy, geschrieben aber vom Feed nicht mehr gelesen:** `mood_logs` — ursprünglich für
+Mood-Einträge gedacht, per `/api/health/mood` weiterhin beschreibbar, aber der Feed zeigt
+Mood-Daten seit v2.1.0 ausschließlich aus `journal_entries`. Kandidat für ein späteres
+Aufräumen, falls `/api/health/mood` nicht mehr gebraucht wird.
+
+**Gedroppt (2026-09-16):** `health_logs`, `obsidian_entries`, `feed_items` — alle drei
+waren tot/write-only (nie gelesen bzw. nie befüllt), siehe `feed`- und `health`-Repo
+Changelogs für Details.
 
 **Gehören NICHT zu diesem Projekt** (dieselbe DB, andere Nebenprojekte): `library_items`,
 `wishlist_items`
@@ -211,7 +219,6 @@ Views: `current_shift`, `daily_summary`
 | DELETE | /api/break/`<id>` | Pause soft-löschen |
 | POST | /api/health/sleep | Schlaf eintragen (upsert by date) |
 | POST | /api/health/mood | Stimmung eintragen (siehe Hinweis zu `mood_logs` oben) |
-| POST | /api/health/log | schreibt in `health_logs` — write-only, nirgends gelesen (Aufräum-Kandidat) |
 | POST | /api/location | Standort (OwnTracks + Shortcut Format) |
 | GET | /api/locations | Standortverlauf (limit/offset, `simplify=true` für RDP-Vereinfachung) |
 | GET | /api/stays | Geclusterte Aufenthalte |
@@ -255,8 +262,8 @@ Views: `current_shift`, `daily_summary`
 | v1.0.0 | Meta-Repo Setup: Auth v2, API v3.0.0, nginx-Configs, Snapshots | ✅ done |
 | — | nginx-Configs + schema.sql gegen Live-Server verifiziert, Duplikate entfernt | ✅ done |
 | — | Neuer Service `health-api` (Port 5008 — 5004-5007 waren schon durch andere Projekte belegt) für Medikamente/Blutdruck/Mahlzeiten | ✅ deployed (2026-09-16, Code im `health`-Repo) |
-| — | `journal_entries`-Schema (Postgres) für die geplante Obsidian-Ablösung im Feed | ⬜ geplant |
-| — | `health_logs`, `obsidian_entries`, `feed_items` droppen (aktuell tot/write-only) | ⬜ geplant |
+| — | `journal_entries`-Schema + volle Obsidian-Ablösung im Feed (siehe `feed`-Repo v2.1.0–v2.3.0) | ✅ deployed (2026-09-16) |
+| — | `health_logs`, `obsidian_entries`, `feed_items` gedroppt, `/api/health/log`-Endpoint entfernt (hing an `health_logs`) | ✅ deployed (2026-09-16) |
 
 ---
 

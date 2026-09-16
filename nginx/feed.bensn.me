@@ -36,11 +36,6 @@ server {
     location ~ ^/s(/.*)?$   { root /var/www/feed/public; try_files /s.html =404; }
 
     # ── API öffentlich (kein Auth) ────────────────────────────────────────
-    location = /api/feed/shared {
-        proxy_pass http://127.0.0.1:5002;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
     location = /api/feed/combined/shared {
         proxy_pass http://127.0.0.1:5002;
         proxy_set_header Host $host;
@@ -58,17 +53,6 @@ server {
     }
     # Upload: eigener X-API-Key Auth in Flask, kein Nginx-Auth nötig
     location = /api/upload {
-        proxy_pass http://127.0.0.1:5002;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
-    # Webhook + Sync: intern, kein Nginx-Auth
-    location = /api/webhook {
-        proxy_pass http://127.0.0.1:5002;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
-    location = /api/sync {
         proxy_pass http://127.0.0.1:5002;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
