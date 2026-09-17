@@ -9,7 +9,7 @@ Ablageort: `~/Documents/Coding/bensn-hub/bensn-meta/CLAUDE.md`
 
 - **Name:** bensn-meta
 - **Typ:** Infrastruktur-Meta-Repo (kein Single-App-Projekt)
-- **Version:** v1.0.3
+- **Version:** v1.0.4
 - **Status:** active
 - **Stack:** Flask + gunicorn + PostgreSQL 16 (Docker) + nginx + systemd
 
@@ -290,6 +290,7 @@ Views: `current_shift`, `daily_summary`
 | v1.0.1 | `shared/bensn.css`/`bensn.js` erstmals versioniert (`bensn-meta/shared/`, vorher nur Live-Kopie auf dem Server ohne Git-Historie), `.btn-pill`/`.btn-save`/`.btn-cancel` aus health/feed/tracking (und teilweise worktracker-Inline-Styles) hierher zentralisiert statt dupliziert, neue `design-system.html` als lebende Style-Guide-Referenz mit Live-Theme-Editor | ✅ deployed (2026-09-16) |
 | v1.0.2 | Erste Inkonsistenzen aus `design-system.html` aufgeräumt: `.btn-danger` (tracking) entfernt zugunsten von `.btn-pill.red`; Border-Radius der "Container/Tile"-Familie (`.wt-stat`, `.wt-cig`, health.bensn.mes `.stat-card`) von 8/10px auf die schon vorherrschenden 12px angeglichen; die dort genannten 9px-Labels (`.wt-stat-label`, `.wt-cig-label`, `.wt-table th`) auf 10px angeglichen. Bewusst NICHT angefasst: Button-/Input-Radius (andere Komponenten-Familie) und die deutlich breitere 9px-Verwendung in worktrackers Formular-Labels/feed/location — siehe `design-system.html` für den vollen Umfang | ✅ deployed (2026-09-16) |
 | v1.0.3 | Hub-weites Strukturaufräumen: `stream/Library Dashboard/` (versteckt, nie gefunden) nach `library/` verschoben — ist die echte `bensn-library-dashboard`/library.bensn.me-Codebase; leerer `stream/`-Ordner entfernt; stale `nginx-worktracker.conf` (Pre-Certbot-Entwurf, längst durch `nginx/worktracker.bensn.me` ersetzt) entfernt; worktracker/landing-Icons korrigiert (lokale Repos enthielten andere Dateien als tatsächlich deployed — jetzt live-Stand gezogen); redundanten Top-Level-`Icons/`-Ordner entfernt (alle Inhalte waren längst in die jeweiligen App-Repos migriert) | ✅ deployed (2026-09-17) |
+| v1.0.4 | Neuer Endpoint `GET /api/stats/monthly` (Monats-Aggregation für worktracker v2.3.0 Stats-Tab). Zusammen deployed: bereits lokal vorhandene, unabhängige Location-Stays-Erweiterung (`note`-Feld auf `PATCH /api/stay/<id>`, neuer `PATCH /api/places/rename`) — noch ohne Frontend im `location`-Repo | ✅ deployed (2026-09-17) |
 
 ---
 

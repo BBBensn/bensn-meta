@@ -791,31 +791,64 @@ def list_stays():
 @require_api_key
 def update_stay(stay_id):
     """
-    Stay Name setzen / aktualisieren.
-    Body: { "name": "Zuhause" }
+    Stay Name und/oder Notiz setzen / aktualisieren.
+    Body: { "name": "Zuhause", "note": "Freitext" } — beide Felder optional,
+    ein fehlendes Feld bleibt unverändert, ein leerer String löscht es.
     """
     d = request.get_json(force=True)
-    name = d.get("name", "").strip() or None
 
-    stay = db_query("SELECT id FROM location_stays WHERE id = %s", (stay_id,), fetchone=True)
+    stay = db_query("SELECT * FROM location_stays WHERE id = %s", (stay_id,), fetchone=True)
     if not stay:
         abort(404, "Stay nicht gefunden")
+
+    name = d["name"].strip() or None if "name" in d else stay["name"]
+    note = d["note"].strip() or None if "note" in d else stay["note"]
 
     conn = get_db()
     try:
         cur = conn.cursor()
         cur.execute("""
             UPDATE location_stays
-            SET name = %s, updated_at = NOW()
+            SET name = %s, note = %s, updated_at = NOW()
             WHERE id = %s
             RETURNING *
-        """, (name, stay_id))
+        """, (name, note, stay_id))
         row = cur.fetchone()
         conn.commit()
     finally:
         conn.close()
 
     return jsonify({"status": "ok", "stay": serialize(row)})
+
+
+@app.route("/api/places/rename", methods=["PATCH"])
+@require_api_key
+def rename_place():
+    """
+    Alle Stays mit einem Namen auf einen Schlag umbenennen — deckt auch
+    "Duplikate zusammenführen" ab (zwei Namen auf denselben neuen Namen)
+    und "Namen überall entfernen" (to leer/fehlend).
+    Body: { "from": "Zuhasue", "to": "Zuhause" }
+    """
+    d = request.get_json(force=True)
+    old_name = (d.get("from") or "").strip()
+    new_name = (d.get("to") or "").strip() or None
+    if not old_name:
+        abort(400, "from fehlt")
+
+    conn = get_db()
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            UPDATE location_stays SET name = %s, updated_at = NOW()
+            WHERE name = %s
+        """, (new_name, old_name))
+        affected = cur.rowcount
+        conn.commit()
+    finally:
+        conn.close()
+
+    return jsonify({"status": "ok", "affected": affected})
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -940,6 +973,33 @@ def stats_shift_summary():
         WHERE s.work_end IS NOT NULL
         GROUP BY shift_type
         ORDER BY shift_type
+    """)
+    return jsonify(serialize_list(rows))
+
+
+@app.route("/api/stats/monthly", methods=["GET"])
+@require_api_key
+def stats_monthly():
+    """Monatsübersicht (alle abgeschlossenen Schichten) für die Stats-Seite."""
+    rows = db_query("""
+        SELECT
+            DATE_TRUNC('month', s.work_start) AS month,
+            COUNT(*) AS shift_count,
+            SUM(s.duration_minutes) AS total_work_minutes,
+            COALESCE(SUM(sub.total_break_minutes), 0) AS total_break_minutes,
+            COALESCE(SUM(sub.total_zig_spicy), 0) AS total_zig_spicy,
+            COALESCE(SUM(sub.total_zig_blend), 0) AS total_zig_blend
+        FROM shifts s
+        LEFT JOIN (
+            SELECT shift_id,
+                SUM(duration_minutes) AS total_break_minutes,
+                SUM(zig_spicy) AS total_zig_spicy,
+                SUM(zig_blend) AS total_zig_blend
+            FROM breaks GROUP BY shift_id
+        ) sub ON sub.shift_id = s.id
+        WHERE s.work_end IS NOT NULL
+        GROUP BY DATE_TRUNC('month', s.work_start)
+        ORDER BY month ASC
     """)
     return jsonify(serialize_list(rows))
 
