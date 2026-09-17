@@ -284,25 +284,40 @@ def shift_get(shift_id):
 @require_api_key
 def shifts_list():
     """
-    Liste der Schichten.
+    Liste der Schichten, inkl. total_break_minutes/zig_total (aggregiert aus breaks,
+    ohne soft-gelöschte) — bis hierher fehlte das, wodurch das Frontend "Netto" ohne
+    echte Pausen-Minuten berechnete (also faktisch Brutto anzeigte).
     Query params: limit (default 20), offset (default 0), date (YYYY-MM-DD)
     """
     limit = min(int(request.args.get("limit", 20)), 500)
     offset = int(request.args.get("offset", 0))
     date_filter = request.args.get("date")
 
+    base_select = """
+        SELECT s.*,
+            COALESCE(b.total_break_minutes, 0) AS total_break_minutes,
+            COALESCE(b.zig_total, 0) AS zig_total
+        FROM shifts s
+        LEFT JOIN (
+            SELECT shift_id,
+                SUM(duration_minutes) AS total_break_minutes,
+                SUM(zig_spicy + zig_blend) AS zig_total
+            FROM breaks
+            WHERE break_end IS NOT NULL AND (deleted IS NULL OR deleted = false)
+            GROUP BY shift_id
+        ) b ON b.shift_id = s.id
+    """
+
     if date_filter:
-        rows = db_query("""
-            SELECT * FROM shifts
-            WHERE DATE(work_start) = %s AND (deleted IS NULL OR deleted = false)
-            ORDER BY work_start DESC
+        rows = db_query(base_select + """
+            WHERE DATE(s.work_start) = %s AND (s.deleted IS NULL OR s.deleted = false)
+            ORDER BY s.work_start DESC
             LIMIT %s OFFSET %s
         """, (date_filter, limit, offset))
     else:
-        rows = db_query("""
-            SELECT * FROM shifts
-            WHERE (deleted IS NULL OR deleted = false)
-            ORDER BY work_start DESC
+        rows = db_query(base_select + """
+            WHERE (s.deleted IS NULL OR s.deleted = false)
+            ORDER BY s.work_start DESC
             LIMIT %s OFFSET %s
         """, (limit, offset))
 

@@ -9,7 +9,7 @@ Ablageort: `~/Documents/Coding/bensn-hub/bensn-meta/CLAUDE.md`
 
 - **Name:** bensn-meta
 - **Typ:** Infrastruktur-Meta-Repo (kein Single-App-Projekt)
-- **Version:** v1.0.7
+- **Version:** v1.0.8
 - **Status:** active
 - **Stack:** Flask + gunicorn + PostgreSQL 16 (Docker) + nginx + systemd
 
@@ -294,6 +294,7 @@ Views: `current_shift`, `daily_summary`
 | v1.0.5 | `/api/stats/shift-summary` um `avg_spicy` erweitert, neuer Endpoint `GET /api/stats/extremes` (längste Pause, längster/kürzester Dienst), `/api/shifts`-Limit-Obergrenze 100 → 500 (worktracker v2.4.0 Stats-Feedback) | ✅ deployed (2026-09-17) |
 | v1.0.6 | Fix: `/api/stats/extremes`, `/shift-summary`, `/monthly` summierten Pausen ohne `deleted`-Filter — soft-gelöschte Korrektur-Duplikate verfälschten Netto-Zeiten (14.04.-Schicht erschien fälschlich als kürzester Dienst). `current_shift`/`daily_summary`-Views haben denselben Fehler, bewusst noch nicht migriert | ✅ deployed (2026-09-17) |
 | v1.0.7 | Fix: `/api/stats/shift-summary` mittelte `avg_break_minutes`/`avg_cigarettes`/`avg_spicy` fälschlich über einzelne Pausen statt über die Pro-Schicht-Summe (Ø 14min statt echter ~70min Pause/Schicht) | ✅ deployed (2026-09-17) |
+| v1.0.8 | `/api/shifts` liefert jetzt `total_break_minutes`/`zig_total` pro Schicht (vorher nie gesetzt) — worktrackers Schichten-Liste zeigte "Netto" seit jeher als Brutto, weil das Feld fehlte | ✅ deployed (2026-09-17) |
 
 ---
 
