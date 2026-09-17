@@ -955,21 +955,27 @@ def stats_weekly():
 @app.route("/api/stats/shift-summary", methods=["GET"])
 @require_api_key
 def stats_shift_summary():
-    """Zusammenfassung nach Schichttypen."""
+    """
+    Zusammenfassung nach Schichttypen.
+    avg_break_minutes/avg_cigarettes/avg_spicy sind pro Dienst gemeint (Summe aller
+    Pausen einer Schicht, gemittelt über die Schichten) — NICHT der Durchschnitt
+    einzelner Pausen. Vorherige Version mittelte fälschlich über einzelne Pausen,
+    was z.B. bei "früh" 17min statt der tatsächlichen 52min Ø-Gesamtpause/Schicht ergab.
+    """
     rows = db_query("""
         SELECT
             shift_type,
             COUNT(*) AS count,
             ROUND(AVG(duration_minutes)) AS avg_duration_minutes,
-            ROUND(AVG(sub.avg_break)) AS avg_break_minutes,
-            ROUND(AVG(sub.avg_zig)) AS avg_cigarettes,
-            ROUND(AVG(sub.avg_spicy)) AS avg_spicy
+            ROUND(AVG(COALESCE(sub.total_break, 0))) AS avg_break_minutes,
+            ROUND(AVG(COALESCE(sub.total_zig, 0))) AS avg_cigarettes,
+            ROUND(AVG(COALESCE(sub.total_spicy, 0))) AS avg_spicy
         FROM shifts s
         LEFT JOIN (
             SELECT shift_id,
-                AVG(duration_minutes) AS avg_break,
-                AVG(zig_spicy + zig_blend) AS avg_zig,
-                AVG(zig_spicy) AS avg_spicy
+                SUM(duration_minutes) AS total_break,
+                SUM(zig_spicy + zig_blend) AS total_zig,
+                SUM(zig_spicy) AS total_spicy
             FROM breaks
             WHERE deleted IS NULL OR deleted = false
             GROUP BY shift_id
