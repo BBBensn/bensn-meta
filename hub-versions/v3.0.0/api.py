@@ -287,7 +287,7 @@ def shifts_list():
     Liste der Schichten.
     Query params: limit (default 20), offset (default 0), date (YYYY-MM-DD)
     """
-    limit = min(int(request.args.get("limit", 20)), 100)
+    limit = min(int(request.args.get("limit", 20)), 500)
     offset = int(request.args.get("offset", 0))
     date_filter = request.args.get("date")
 
@@ -962,12 +962,14 @@ def stats_shift_summary():
             COUNT(*) AS count,
             ROUND(AVG(duration_minutes)) AS avg_duration_minutes,
             ROUND(AVG(sub.avg_break)) AS avg_break_minutes,
-            ROUND(AVG(sub.avg_zig)) AS avg_cigarettes
+            ROUND(AVG(sub.avg_zig)) AS avg_cigarettes,
+            ROUND(AVG(sub.avg_spicy)) AS avg_spicy
         FROM shifts s
         LEFT JOIN (
             SELECT shift_id,
                 AVG(duration_minutes) AS avg_break,
-                AVG(zig_spicy + zig_blend) AS avg_zig
+                AVG(zig_spicy + zig_blend) AS avg_zig,
+                AVG(zig_spicy) AS avg_spicy
             FROM breaks GROUP BY shift_id
         ) sub ON sub.shift_id = s.id
         WHERE s.work_end IS NOT NULL
@@ -975,6 +977,38 @@ def stats_shift_summary():
         ORDER BY shift_type
     """)
     return jsonify(serialize_list(rows))
+
+
+@app.route("/api/stats/extremes", methods=["GET"])
+@require_api_key
+def stats_extremes():
+    """Extremwerte (längste Pause, kürzester/längster Dienst) — hilft, fehlerhafte Einträge zu erkennen."""
+    longest_break = db_query("""
+        SELECT b.duration_minutes, b.break_type, b.break_start, s.station, s.shift_type
+        FROM breaks b
+        JOIN shifts s ON s.id = b.shift_id
+        WHERE b.break_end IS NOT NULL AND (b.deleted IS NULL OR b.deleted = false)
+        ORDER BY b.duration_minutes DESC LIMIT 1
+    """, fetchone=True)
+
+    netto_query = """
+        SELECT s.id, s.work_start, s.work_end, s.shift_type, s.station,
+               s.duration_minutes - COALESCE(sub.total_break_minutes, 0) AS netto_minutes
+        FROM shifts s
+        LEFT JOIN (
+            SELECT shift_id, SUM(duration_minutes) AS total_break_minutes
+            FROM breaks WHERE break_end IS NOT NULL GROUP BY shift_id
+        ) sub ON sub.shift_id = s.id
+        WHERE s.work_end IS NOT NULL AND (s.deleted IS NULL OR s.deleted = false)
+    """
+    longest_shift = db_query(f"{netto_query} ORDER BY netto_minutes DESC LIMIT 1", fetchone=True)
+    shortest_shift = db_query(f"{netto_query} ORDER BY netto_minutes ASC LIMIT 1", fetchone=True)
+
+    return jsonify({
+        "longest_break": serialize(longest_break),
+        "longest_shift": serialize(longest_shift),
+        "shortest_shift": serialize(shortest_shift)
+    })
 
 
 @app.route("/api/stats/monthly", methods=["GET"])
