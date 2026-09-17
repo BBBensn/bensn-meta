@@ -970,9 +970,11 @@ def stats_shift_summary():
                 AVG(duration_minutes) AS avg_break,
                 AVG(zig_spicy + zig_blend) AS avg_zig,
                 AVG(zig_spicy) AS avg_spicy
-            FROM breaks GROUP BY shift_id
+            FROM breaks
+            WHERE deleted IS NULL OR deleted = false
+            GROUP BY shift_id
         ) sub ON sub.shift_id = s.id
-        WHERE s.work_end IS NOT NULL
+        WHERE s.work_end IS NOT NULL AND (s.deleted IS NULL OR s.deleted = false)
         GROUP BY shift_type
         ORDER BY shift_type
     """)
@@ -997,7 +999,9 @@ def stats_extremes():
         FROM shifts s
         LEFT JOIN (
             SELECT shift_id, SUM(duration_minutes) AS total_break_minutes
-            FROM breaks WHERE break_end IS NOT NULL GROUP BY shift_id
+            FROM breaks
+            WHERE break_end IS NOT NULL AND (deleted IS NULL OR deleted = false)
+            GROUP BY shift_id
         ) sub ON sub.shift_id = s.id
         WHERE s.work_end IS NOT NULL AND (s.deleted IS NULL OR s.deleted = false)
     """
@@ -1029,9 +1033,11 @@ def stats_monthly():
                 SUM(duration_minutes) AS total_break_minutes,
                 SUM(zig_spicy) AS total_zig_spicy,
                 SUM(zig_blend) AS total_zig_blend
-            FROM breaks GROUP BY shift_id
+            FROM breaks
+            WHERE deleted IS NULL OR deleted = false
+            GROUP BY shift_id
         ) sub ON sub.shift_id = s.id
-        WHERE s.work_end IS NOT NULL
+        WHERE s.work_end IS NOT NULL AND (s.deleted IS NULL OR s.deleted = false)
         GROUP BY DATE_TRUNC('month', s.work_start)
         ORDER BY month ASC
     """)
