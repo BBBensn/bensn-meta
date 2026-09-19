@@ -35,6 +35,17 @@ server {
         alias /var/www/shared/;
     }
 
+    # ── PWA-Kerndateien (kein Auth) ─────────────────────────────────────────
+    # sw.js/manifest.json MUESSEN ohne Auth erreichbar sein: der Browser holt sie im
+    # Hintergrund (Service-Worker-Update-Check), ohne dass eine Nutzer-Session aktiv ist.
+    # Hingen sie hinterm Auth-Gate, bekam der Update-Check bei abgelaufenem/fehlendem
+    # Cookie eine HTML-Login-Seite statt Javascript zurueck, das Update schlug still fehl,
+    # und das Geraet blieb dauerhaft auf einem alten (ggf. kaputten) Service Worker haengen.
+    location = /sw.js {
+        add_header Cache-Control "no-cache";
+    }
+    location = /manifest.json {}
+
     # ── API — Cookie-Auth (Nginx injiziert X-API-Key weiterhin) ──────────
     location /api/ {
         auth_request /auth/verify;

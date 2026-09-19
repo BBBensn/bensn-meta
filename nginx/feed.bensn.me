@@ -30,6 +30,15 @@ server {
     location /shared/ { alias /var/www/shared/; }
     location /uploads/ { root /var/www/feed/public; }
 
+    # ── PWA-Kerndateien (kein Auth) ─────────────────────────────────────────
+    # sw.js/manifest.json MUESSEN ohne Auth erreichbar sein: der Browser holt sie im
+    # Hintergrund (Service-Worker-Update-Check), ohne dass eine Nutzer-Session aktiv ist.
+    # Hingen sie hinterm Auth-Gate, bekam der Update-Check bei abgelaufenem/fehlendem
+    # Cookie eine HTML-Login-Seite statt Javascript zurueck, das Update schlug still fehl,
+    # und das Geraet blieb dauerhaft auf einem alten (ggf. kaputten) Service Worker haengen.
+    location = /sw.js { root /var/www/feed/public; add_header Cache-Control "no-cache"; }
+    location = /manifest.json { root /var/www/feed/public; }
+
     # ── Statische öffentliche Seiten (kein Auth) ──────────────────────────
     location = /shared      { root /var/www/feed/public; try_files /shared.html =404; }
     location = /shared.html { root /var/www/feed/public; }
