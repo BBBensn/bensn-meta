@@ -23,10 +23,25 @@
 
   const state = BLOBS.map(b => ({ ...b }));
 
-  function tick() {
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let rafId = null;
+
+  function render() {
     const W = window.innerWidth;
     const H = window.innerHeight;
     state.forEach((b, i) => {
+      const maxX = 1 - b.w / W;
+      const maxY = 1 - b.h / H;
+      b.x = Math.min(Math.max(b.x, 0), Math.max(maxX, 0));
+      b.y = Math.min(Math.max(b.y, 0), Math.max(maxY, 0));
+      els[i].style.transform = 'translate(' + Math.round(b.x * W) + 'px,' + Math.round(b.y * H) + 'px)';
+    });
+  }
+
+  function tick() {
+    const W = window.innerWidth;
+    const H = window.innerHeight;
+    state.forEach((b) => {
       b.x += b.vx * 0.0025;
       b.y += b.vy * 0.0025;
       const maxX = 1 - b.w / W;
@@ -35,9 +50,43 @@
       if (b.x >= maxX) { b.x = maxX; b.vx = -Math.abs(b.vx); }
       if (b.y <= 0) { b.y = 0; b.vy = Math.abs(b.vy); }
       if (b.y >= maxY) { b.y = maxY; b.vy = -Math.abs(b.vy); }
-      els[i].style.transform = 'translate(' + Math.round(b.x * W) + 'px,' + Math.round(b.y * H) + 'px)';
     });
-    requestAnimationFrame(tick);
+    render();
+    rafId = requestAnimationFrame(tick);
   }
-  tick();
+
+  // The blurred blobs are expensive to repaint. Freeze them while the page is hidden or a
+  // text field is focused (on-screen keyboard + repaint load can stall Safari on iOS).
+  function isTyping() {
+    const a = document.activeElement;
+    return !!a && (a.tagName === 'TEXTAREA' || a.tagName === 'SELECT' ||
+      (a.tagName === 'INPUT' && !/^(range|checkbox|radio|button|submit|file)$/.test(a.type)));
+  }
+  function sync() {
+    const shouldRun = !reduceMotion && !document.hidden && !isTyping();
+    if (shouldRun && rafId === null) rafId = requestAnimationFrame(tick);
+    else if (!shouldRun && rafId !== null) { cancelAnimationFrame(rafId); rafId = null; }
+  }
+  document.addEventListener('visibilitychange', sync);
+  document.addEventListener('focusin', sync);
+  document.addEventListener('focusout', () => setTimeout(sync, 0));
+  window.addEventListener('resize', render);
+  render();
+  sync();
+})();
+
+// Expose the visible viewport (area above the on-screen keyboard) as CSS variables so
+// fixed bottom sheets can size and position themselves inside it. iOS Safari does not
+// shrink the layout viewport when the keyboard opens.
+(function() {
+  const vv = window.visualViewport;
+  if (!vv) return;
+  const root = document.documentElement;
+  function update() {
+    root.style.setProperty('--vv-height', vv.height + 'px');
+    root.style.setProperty('--vv-top', vv.offsetTop + 'px');
+  }
+  vv.addEventListener('resize', update);
+  vv.addEventListener('scroll', update);
+  update();
 })();

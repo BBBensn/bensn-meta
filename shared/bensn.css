@@ -13,7 +13,12 @@
   --orange: #e8724a;
 }
 
-html { scroll-behavior: smooth; }
+html {
+  scroll-behavior: smooth;
+  overflow-x: hidden;
+  overflow-x: clip;
+  -webkit-text-size-adjust: 100%;
+}
 
 body {
   background: var(--bg);
@@ -21,6 +26,8 @@ body {
   font-family: 'Syne', sans-serif;
   min-height: 100vh;
   overflow-x: hidden;
+  overflow-x: clip;
+  overflow-wrap: break-word;
 }
 
 /* ── Background ── */
@@ -36,6 +43,18 @@ body {
 }
 .blobs { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
 .blob { position: absolute; border-radius: 50%; filter: blur(90px); opacity: 0.22; will-change: transform; }
+@media (pointer: coarse) { .blob { filter: blur(50px); } }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+/* ── Responsive / mobile safety ── */
+img, video, canvas, svg, pre { max-width: 100%; }
+/* iOS Safari zooms the whole page on focus of any field below 16px and stays zoomed,
+   which shows up as sideways scrolling. Keep touch-device fields at 16px. */
+@media (pointer: coarse) {
+  input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="button"]):not([type="submit"]),
+  textarea,
+  select { font-size: 16px !important; }
+}
 
 /* ── Layout ── */
 .wrap {
