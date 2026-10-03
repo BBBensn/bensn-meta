@@ -1223,6 +1223,8 @@ def tracking_entry_add():
         date:       "2026-04-21",    // Vienna local date
         note:       "...",           // optional
         source:     "pwa"            // optional
+        timestamp:  "2026-04-21T13:05:00+02:00"   // optional: nachtraeglicher Zeitpunkt;
+                                     // `date` wird dann serverseitig daraus (Vienna) berechnet
     }
     """
     d = request.get_json(force=True)
@@ -1234,6 +1236,19 @@ def tracking_entry_add():
 
     if d["entry_type"] not in ("bestand", "zaehler", "auffuellung", "entnahme", "delta"):
         abort(400, "entry_type ungültig")
+
+    if d.get("timestamp"):
+        row = db_insert("""
+            INSERT INTO tracking_entries
+                (item_id, category, name, amount, unit, entry_type, date, note, source, timestamp)
+            VALUES (%s, %s, %s, %s, %s, %s,
+                    (%s::timestamptz AT TIME ZONE 'Europe/Vienna')::date, %s, %s, %s::timestamptz)
+            RETURNING *
+        """, (
+            d["item_id"], d["category"], d["name"], d["amount"], d["unit"], d["entry_type"],
+            d["timestamp"], d.get("note"), d.get("source", "pwa"), d["timestamp"],
+        ))
+        return jsonify({"status": "ok", "entry": serialize(row)}), 201
 
     row = db_insert("""
         INSERT INTO tracking_entries

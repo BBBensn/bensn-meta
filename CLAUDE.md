@@ -9,7 +9,7 @@ Ablageort: `~/Documents/Coding/bensn-hub/bensn-meta/CLAUDE.md`
 
 - **Name:** bensn-meta
 - **Typ:** Infrastruktur-Meta-Repo (kein Single-App-Projekt)
-- **Version:** v1.0.12
+- **Version:** v1.0.13
 - **Status:** active
 - **Stack:** Flask + gunicorn + PostgreSQL 16 (Docker) + nginx + systemd
 
@@ -300,6 +300,7 @@ Views: `current_shift`, `daily_summary`
 | v1.0.10 | `shared/`: Blob-Animation pausiert bei Eingabe-Fokus/versteckter Seite/reduced-motion, Blur auf Touch 50px, `--vv-height`/`--vv-top` für Bottom-Sheets, Touch-Inputs mind. 16px (iOS-Auto-Zoom → seitliches Scrollen), `overflow-x: clip` auf html/body | ✅ deployed (2026-09-29) |
 | v1.0.11 | Neuer Endpoint `GET /api/smoke-breaks`: alle Pausen mit Zigaretten in einer Abfrage, mit Zeitstempel. Habits (Gesamt-App) brauchte bisher 101 Requests (Schichtliste + je Schicht die Details) und konnte die Arbeits-Zigaretten nur pro Tag summiert anzeigen; jetzt 1 Request und chronologische Einordnung je Pause. Summen sind identisch zur alten Methode (754 Spicy / 120 Zigaretten über alle Daten), nur Pausen nach Mitternacht in Nachtdiensten zählen jetzt zum Kalendertag der Pause | ✅ deployed (2026-10-04) |
 | v1.0.12 | Nginx-Spiegel nach dem Cutover der Gesamt-App: `tracking.bensn.me` liefert die App im Root (`/js/`, `/css/` no-cache, `/next/` → `/`), `worktracker.bensn.me/` leitet auf `tracking.bensn.me/#/work` um (`/api/` bleibt offen für Kurzbefehle/OwnTracks). `health.bensn.me/` → `#/health` (Config im `health`-Repo). Server-Originale: `/root/nginx-backup-20261004/` | ✅ deployed (2026-10-04) |
+| v1.0.13 | `POST /api/tracking/entry` nimmt optional `timestamp` (nachträglicher Zeitpunkt, `date` wird serverseitig in Wiener Zeit daraus berechnet) | ✅ deployed (2026-10-04) |
 
 ---
 
