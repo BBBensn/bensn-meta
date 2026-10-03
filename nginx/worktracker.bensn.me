@@ -56,10 +56,10 @@ server {
         add_header             Access-Control-Allow-Origin "*";
     }
 
-    # ── Hauptseite & alle statischen Dateien — Cookie-Auth ───────────────
+    # ── Seiten → Gesamt-App ───────────────────────────────────────────────
+    # Die Worktracker-Oberfläche lebt seit tracking v2.0.0 in der Gesamt-App. Nur noch /api/ (oben)
+    # bleibt hier erreichbar (iOS-Kurzbefehle, OwnTracks, Oura-Callback).
     location / {
-        auth_request /auth/verify;
-        error_page 401 = @bensn_login_redirect;
-        try_files $uri $uri/ /index.html;
+        return 302 https://tracking.bensn.me/#/work;
     }
 }

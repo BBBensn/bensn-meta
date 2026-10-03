@@ -9,7 +9,7 @@ Ablageort: `~/Documents/Coding/bensn-hub/bensn-meta/CLAUDE.md`
 
 - **Name:** bensn-meta
 - **Typ:** Infrastruktur-Meta-Repo (kein Single-App-Projekt)
-- **Version:** v1.0.11
+- **Version:** v1.0.12
 - **Status:** active
 - **Stack:** Flask + gunicorn + PostgreSQL 16 (Docker) + nginx + systemd
 
@@ -111,9 +111,9 @@ Nächster tatsächlich freier Port: **5009**.
 |--------|------|------|
 | bensn.me | /var/www/bensn.me (static) | öffentlich |
 | auth.bensn.me | Port 5003 | — (ist selbst Auth) |
-| worktracker.bensn.me | /var/www/worktracker + Port 5001 | Cookie (bensn-auth) + nginx injiziert X-API-Key |
+| worktracker.bensn.me | Seite → Redirect auf tracking.bensn.me/#/work; `/api/` → Port 5001 (ohne Cookie, Kurzbefehle/OwnTracks) | nginx injiziert X-API-Key |
 | feed.bensn.me | /var/www/feed/public + Port 5002 | Cookie (bensn-auth), gezielte öffentliche Ausnahmen |
-| health.bensn.me | /var/www/health + Port 5008 | Cookie (bensn-auth) + nginx injiziert X-API-Key |
+| health.bensn.me | Seite → Redirect auf tracking.bensn.me/#/health; `/api/` → Port 5008 | Cookie (bensn-auth) + nginx injiziert X-API-Key |
 | location.bensn.me | /var/www/location + Port 5001 | Cookie (bensn-auth) + nginx injiziert X-API-Key |
 | tracking.bensn.me | /var/www/tracking + Port 5001 | Cookie (bensn-auth) + nginx injiziert X-API-Key |
 | data.bensn.me | Port 3000 (Grafana) | Grafana-eigenes Login |
@@ -299,6 +299,7 @@ Views: `current_shift`, `daily_summary`
 | v1.0.9 | `/sw.js`/`manifest.json` liegen in `feed`/`health`/`tracking`s Nginx-Configs nicht mehr hinterm Auth-Gate — der Service-Worker-Update-Check läuft im Hintergrund ohne aktive Nutzer-Session, bekam bei abgelaufenem/fehlendem Cookie bisher eine HTML-Login-Seite statt Javascript zurück, das Update schlug still fehl und Geräte blieben dauerhaft auf einem alten (ggf. kaputten) Service Worker hängen — genau das war Ursache dafür, dass der sw.js-Fix aus v1.6.3/v2.7.3 ein iPhone nie erreichte, obwohl der MacBook-Browser längst aktualisiert hatte | ✅ deployed (2026-09-19) |
 | v1.0.10 | `shared/`: Blob-Animation pausiert bei Eingabe-Fokus/versteckter Seite/reduced-motion, Blur auf Touch 50px, `--vv-height`/`--vv-top` für Bottom-Sheets, Touch-Inputs mind. 16px (iOS-Auto-Zoom → seitliches Scrollen), `overflow-x: clip` auf html/body | ✅ deployed (2026-09-29) |
 | v1.0.11 | Neuer Endpoint `GET /api/smoke-breaks`: alle Pausen mit Zigaretten in einer Abfrage, mit Zeitstempel. Habits (Gesamt-App) brauchte bisher 101 Requests (Schichtliste + je Schicht die Details) und konnte die Arbeits-Zigaretten nur pro Tag summiert anzeigen; jetzt 1 Request und chronologische Einordnung je Pause. Summen sind identisch zur alten Methode (754 Spicy / 120 Zigaretten über alle Daten), nur Pausen nach Mitternacht in Nachtdiensten zählen jetzt zum Kalendertag der Pause | ✅ deployed (2026-10-04) |
+| v1.0.12 | Nginx-Spiegel nach dem Cutover der Gesamt-App: `tracking.bensn.me` liefert die App im Root (`/js/`, `/css/` no-cache, `/next/` → `/`), `worktracker.bensn.me/` leitet auf `tracking.bensn.me/#/work` um (`/api/` bleibt offen für Kurzbefehle/OwnTracks). `health.bensn.me/` → `#/health` (Config im `health`-Repo). Server-Originale: `/root/nginx-backup-20261004/` | ✅ deployed (2026-10-04) |
 
 ---
 

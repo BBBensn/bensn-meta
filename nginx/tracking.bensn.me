@@ -46,14 +46,25 @@ server {
     }
     location = /manifest.json {}
 
-    # ── Gesamt-App (Vorschau) — liegt unter /next/, bis der Umbau fertig ist ─────────────
+    # ── App-Module und CSS ────────────────────────────────────────────────
     # Cookie-Auth wie die Hauptseite. no-cache: ES-Module und CSS werden bei jedem Aufruf
     # revalidiert (billig dank ETag), damit nach einem Deploy nie veraltete Module laufen.
-    location ^~ /next/ {
+    location ^~ /js/ {
         auth_request /auth/verify;
         error_page 401 = @bensn_login_redirect;
         add_header Cache-Control "no-cache";
-        try_files $uri $uri/ =404;
+        try_files $uri =404;
+    }
+    location ^~ /css/ {
+        auth_request /auth/verify;
+        error_page 401 = @bensn_login_redirect;
+        add_header Cache-Control "no-cache";
+        try_files $uri =404;
+    }
+
+    # Alter Vorschau-Pfad (bis v2.0.0): Lesezeichen/Home-Screen-Icons landen in der App
+    location ^~ /next/ {
+        return 302 https://tracking.bensn.me/;
     }
 
     # ── Health-API unter derselben Origin: /hapi/foo -> health-api /api/foo ─────────────
@@ -93,9 +104,12 @@ server {
     }
 
     # ── Hauptseite — Cookie-Auth ──────────────────────────────────────────
+    # Die Gesamt-App (index.html) liegt im Root; /legacy/ hält die alte Habit-Tracker-Einzelseite
+    # (nur als Rückfall, nicht verlinkt). no-cache, damit Deploys sofort greifen.
     location / {
         auth_request /auth/verify;
         error_page 401 = @bensn_login_redirect;
+        add_header Cache-Control "no-cache";
         try_files $uri $uri/ /index.html;
     }
 }
