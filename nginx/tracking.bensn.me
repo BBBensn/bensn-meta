@@ -46,6 +46,32 @@ server {
     }
     location = /manifest.json {}
 
+    # ── Gesamt-App (Vorschau) — liegt unter /next/, bis der Umbau fertig ist ─────────────
+    # Cookie-Auth wie die Hauptseite. no-cache: ES-Module und CSS werden bei jedem Aufruf
+    # revalidiert (billig dank ETag), damit nach einem Deploy nie veraltete Module laufen.
+    location ^~ /next/ {
+        auth_request /auth/verify;
+        error_page 401 = @bensn_login_redirect;
+        add_header Cache-Control "no-cache";
+        try_files $uri $uri/ =404;
+    }
+
+    # ── Health-API unter derselben Origin: /hapi/foo -> health-api /api/foo ─────────────
+    # Eigener Prefix statt /api/, weil bensn-api bereits Routen unter /api/health/... hat.
+    location ^~ /hapi/ {
+        auth_request /auth/verify;
+        error_page 401 = @bensn_login_redirect;
+        rewrite ^/hapi/(.*)$ /api/$1 break;
+        proxy_pass             http://127.0.0.1:5008;
+        proxy_http_version     1.1;
+        proxy_set_header       Host $host;
+        proxy_set_header       X-Real-IP $remote_addr;
+        proxy_set_header       X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header       X-Forwarded-Proto $scheme;
+        proxy_set_header       X-API-Key "a9b571df1b237992f87e1126411403ff1ab57cf9aa9b9829015e4c842be8c6f5";
+        add_header             Cache-Control "no-cache";
+    }
+
     # ── API — Cookie-Auth (Nginx injiziert X-API-Key weiterhin) ──────────
     location /api/ {
         auth_request /auth/verify;
