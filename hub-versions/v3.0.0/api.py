@@ -324,6 +324,31 @@ def shifts_list():
     return jsonify(serialize_list(rows))
 
 
+@app.route("/api/smoke-breaks", methods=["GET"])
+@require_api_key
+def smoke_breaks():
+    """
+    Alle Pausen mit Zigaretten (Spicy/Blend) der letzten ?days=120 Tage in EINER Abfrage, mit
+    Zeitstempel je Pause. Ersetzt für Habits die Kombination "alle Schichten laden + je Schicht
+    die Details" (101 Requests) und erlaubt, die Arbeits-Zigaretten chronologisch einzusortieren.
+    Gleiche Löschregeln wie /api/shifts und /api/shift/<id> (Schicht und Pause nicht gelöscht).
+    """
+    days = max(1, min(request.args.get("days", 120, type=int), 730))
+    rows = db_query("""
+        SELECT b.id, b.shift_id, b.break_start, b.break_end, b.duration_minutes, b.break_type,
+               COALESCE(b.zig_spicy, 0) AS zig_spicy, COALESCE(b.zig_blend, 0) AS zig_blend,
+               s.station
+        FROM breaks b
+        JOIN shifts s ON s.id = b.shift_id
+        WHERE (b.deleted IS NULL OR b.deleted = false)
+          AND (s.deleted IS NULL OR s.deleted = false)
+          AND (COALESCE(b.zig_spicy, 0) > 0 OR COALESCE(b.zig_blend, 0) > 0)
+          AND b.break_start >= NOW() - make_interval(days => %s)
+        ORDER BY b.break_start DESC
+    """, (days,))
+    return jsonify({"status": "ok", "count": len(rows), "breaks": serialize_list(rows)})
+
+
 @app.route("/api/shift/<shift_id>/correct", methods=["PATCH"])
 @require_api_key
 def shift_correct(shift_id):

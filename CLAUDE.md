@@ -9,7 +9,7 @@ Ablageort: `~/Documents/Coding/bensn-hub/bensn-meta/CLAUDE.md`
 
 - **Name:** bensn-meta
 - **Typ:** Infrastruktur-Meta-Repo (kein Single-App-Projekt)
-- **Version:** v1.0.10
+- **Version:** v1.0.11
 - **Status:** active
 - **Stack:** Flask + gunicorn + PostgreSQL 16 (Docker) + nginx + systemd
 
@@ -224,6 +224,7 @@ Views: `current_shift`, `daily_summary`
 | GET | /api/shift/current | Aktuelle Schicht + Pausen (für Widget) |
 | GET | /api/shift/`<id>` | Einzelne Schicht mit Pausen |
 | GET | /api/shifts | Schichtliste (limit/offset/date) |
+| GET | /api/smoke-breaks | Alle Pausen mit Zigaretten (Spicy/Blend) der letzten `?days=120` Tage (max. 730) mit Zeitstempel je Pause und Station, in EINER Abfrage (statt Schichtliste + je Schicht Details) |
 | PATCH | /api/shift/`<id>`/correct | Schicht korrigieren (speichert Snapshot) |
 | DELETE | /api/shift/`<id>` | Schicht soft-löschen |
 | POST | /api/break/start | Pause beginnen |
@@ -297,6 +298,7 @@ Views: `current_shift`, `daily_summary`
 | v1.0.8 | `/api/shifts` liefert jetzt `total_break_minutes`/`zig_total` pro Schicht (vorher nie gesetzt) — worktrackers Schichten-Liste zeigte "Netto" seit jeher als Brutto, weil das Feld fehlte | ✅ deployed (2026-09-17) |
 | v1.0.9 | `/sw.js`/`manifest.json` liegen in `feed`/`health`/`tracking`s Nginx-Configs nicht mehr hinterm Auth-Gate — der Service-Worker-Update-Check läuft im Hintergrund ohne aktive Nutzer-Session, bekam bei abgelaufenem/fehlendem Cookie bisher eine HTML-Login-Seite statt Javascript zurück, das Update schlug still fehl und Geräte blieben dauerhaft auf einem alten (ggf. kaputten) Service Worker hängen — genau das war Ursache dafür, dass der sw.js-Fix aus v1.6.3/v2.7.3 ein iPhone nie erreichte, obwohl der MacBook-Browser längst aktualisiert hatte | ✅ deployed (2026-09-19) |
 | v1.0.10 | `shared/`: Blob-Animation pausiert bei Eingabe-Fokus/versteckter Seite/reduced-motion, Blur auf Touch 50px, `--vv-height`/`--vv-top` für Bottom-Sheets, Touch-Inputs mind. 16px (iOS-Auto-Zoom → seitliches Scrollen), `overflow-x: clip` auf html/body | ✅ deployed (2026-09-29) |
+| v1.0.11 | Neuer Endpoint `GET /api/smoke-breaks`: alle Pausen mit Zigaretten in einer Abfrage, mit Zeitstempel. Habits (Gesamt-App) brauchte bisher 101 Requests (Schichtliste + je Schicht die Details) und konnte die Arbeits-Zigaretten nur pro Tag summiert anzeigen; jetzt 1 Request und chronologische Einordnung je Pause. Summen sind identisch zur alten Methode (754 Spicy / 120 Zigaretten über alle Daten), nur Pausen nach Mitternacht in Nachtdiensten zählen jetzt zum Kalendertag der Pause | ✅ deployed (2026-10-04) |
 
 ---
 
